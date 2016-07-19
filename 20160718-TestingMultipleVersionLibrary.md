@@ -19,7 +19,7 @@ A servlet container needs to be able to load classes in isolation for each webap
 classloader. If a class loaded from 2 different ClassLoader are not Equals.
 We can use the same mechanism to load both version of the library each with each own ClassLoader.
 
-See [P1.java](src/main/java/io/github/arnaudroger/tmvl/P1.java)
+[P1.java](src/main/java/io/github/arnaudroger/tmvl/P1.java)
 ```java
 URLClassLoader urlClassLoader18 = new URLClassLoader(
         new URL[] { new URL(GUAVA_REPO + "/18.0/guava-18.0.jar") },
@@ -50,7 +50,8 @@ asciiClass18.equals(asciiClass19) = false
 The problem with that is that we need to use reflection to access the class methods.
 for that class
 
-```
+[GuavaUser.java](src/main/java/io/github/arnaudroger/tmvl/GuaveUser.java)
+```java
 public class GuavaUser {
     public static String toLowerCase(String str) {
         printClassLoader(GuavaUser.class);
@@ -69,8 +70,8 @@ public class GuavaUser {
 ```
 if we call
 
-```
-        GuavaUser.toLowerCase(System.getProperty("user.name"));
+```java
+    GuavaUser.toLowerCase(System.getProperty("user.name"));
 
 ```
 
@@ -86,7 +87,8 @@ urlClassLoader18 will load GuavaUser from it's parent class loader that is curre
 We need to load GuavaUser from the UrlClassLoader by adding the location to list of URL. But because
 the classloader load from the parent ClassLoader first we also need to pass null as the parent.
 
-```
+[P2.java](src/main/java/io/github/arnaudroger/tmvl/P2.java)
+```java
     URL targetClassUrl = new File("target/classes").toURI().toURL();
     URLClassLoader urlClassLoader18 = new URLClassLoader(
         new URL[] { new URL(GUAVA_REPO + "/18.0/guava-18.0.jar"), targetClassUrl },
@@ -111,18 +113,19 @@ com.google.common.base.Ascii/classLoader = [http://repo1.maven.org/maven2/com/go
 ```
 
 Now what if we use a Class that also need another dep?
+[P3.java](src/main/java/io/github/arnaudroger/tmvl/P3.java)
+[GuavaAndCommonUser.java](src/main/java/io/github/arnaudroger/tmvl/GuavaAndCommonUser.java)
+```java
+public static String toLowerCase(String str) {
+    printClassLoader(GuavaAndCommonUser.class);
+    printClassLoader(Ascii.class);
+    printClassLoader(StringUtils.class);
 
-```
-    public static String toLowerCase(String str) {
-        printClassLoader(GuavaAndCommonUser.class);
-        printClassLoader(Ascii.class);
-        printClassLoader(StringUtils.class);
-
-        if (!StringUtils.isAllUpperCase(str)) {
-            return Ascii.toUpperCase(str);
-        }
-        return str;
+    if (!StringUtils.isAllUpperCase(str)) {
+        return Ascii.toUpperCase(str);
     }
+    return str;
+}
 ```
 
 the we get
@@ -139,7 +142,8 @@ Caused by: java.lang.ClassNotFoundException: org.apache.commons.lang3.StringUtil
 The class loader could not resolve commons-lang3. We just need to create our own ClassLoader that will delegate to
 the app classloader when it does not find a class.
 
-```
+[P4.java](src/main/java/io/github/arnaudroger/tmvl/P4.java)
+```java
     public static class P4ClassLoader extends URLClassLoader {
 
         private final ClassLoader delegate;
@@ -177,7 +181,9 @@ Now that we have the code for our ClassLoader that works it would be nice to hav
 So you can just annotate your Class with the library dependencies you need and it create suite of test for each library set.
 
 That would work like that
-```
+
+[P5Test.java](src/test/java/io/github/arnaudroger/tmvl/P5Test.java)
+```java
 @RunWith(MultiClassLoaderJunitRunner.class)
 @LibrarySets(
         librarySets = {
@@ -195,6 +201,7 @@ class P5Test {
 
 The Runner extends Suite and build the list of runner by looking at the LibrarySets annotation.
 
+[P5Test.java](src/main/java/io/github/arnaudroger/tmvl/P5MultiClassLoaderJunitRunner.java)
 ```java
 private static List<Runner> buildRunners(Class<?> klass) throws IOException, ClassNotFoundException, InitializationError {
     P5LibrarySets librarySet = klass.getAnnotation(P5LibrarySets.class);
@@ -223,9 +230,9 @@ private static List<Runner> buildRunners(Class<?> klass) throws IOException, Cla
 }
 ```
 
-the P5ClassLoaderChangerRunner just set the context class loader before running the test and restore it after.
+the [P5ClassLoaderChangerRunner](src/main/java/io/github/arnaudroger/tmvl/P5ClassLoaderChangerRunner.java) just set the context class loader before running the test and restore it after.
 
-P5LibrarySetClassLoader is the same as the ClassLoader in P4 except for doing the transform from String to URL.
+[]P5LibrarySetClassLoader](src/main/java/io/github/arnaudroger/tmvl/P5LibrarySetClassLoader.java) is the same as the ClassLoader in P4 except for doing the transform from String to URL.
 
 ```java
 private static URL[] toUrls(String[] libraries) throws IOException {
