@@ -253,6 +253,14 @@ private static URL[] toUrls(String[] libraries) throws IOException {
 
 and Here you go bob is your uncle you have a declarative way to run your test against multiple version of the same library.
 
+## What's next
+
+Also it works, the management of the url can become cumbersome when you need to have more library in the classpath. It is possible
+to give a list of class you want to be loaded from the classloader and write some code that will find where that class is loaded from.
+You might also need to exclude some class from that class loader, surefire create a big jar of everything and if you do url discovery
+it will pick that jar up and @Test will be in there. Then the runner won't recognize the @Test annotation on the class has they have different classe loader
+so you will need to exclude any junit class.
+
 ## ClassLoader leakage
 
 Some of the test might end up registering Class that reference the ClassLoader in a ThreadLocal making it reachable even
