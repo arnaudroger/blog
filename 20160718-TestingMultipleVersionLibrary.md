@@ -50,7 +50,7 @@ asciiClass18.equals(asciiClass19) = false
 The problem with that is that we need to use reflection to access the class methods.
 for that class
 
-[GuavaUser.java](src/main/java/io/github/arnaudroger/tmvl/GuaveUser.java)
+[GuavaUser.java](src/main/java/io/github/arnaudroger/tmvl/GuavaUser.java)
 ```java
 public class GuavaUser {
     public static String toLowerCase(String str) {
@@ -113,7 +113,9 @@ com.google.common.base.Ascii/classLoader = [http://repo1.maven.org/maven2/com/go
 ```
 
 Now what if we use a Class that also need another dep?
+
 [P3.java](src/main/java/io/github/arnaudroger/tmvl/P3.java)
+
 [GuavaAndCommonUser.java](src/main/java/io/github/arnaudroger/tmvl/GuavaAndCommonUser.java)
 ```java
 public static String toLowerCase(String str) {
@@ -201,7 +203,7 @@ class P5Test {
 
 The Runner extends Suite and build the list of runner by looking at the LibrarySets annotation.
 
-[P5Test.java](src/main/java/io/github/arnaudroger/tmvl/P5MultiClassLoaderJunitRunner.java)
+[P5MultiClassLoaderJunitRunner.java](src/main/java/io/github/arnaudroger/tmvl/P5MultiClassLoaderJunitRunner.java)
 ```java
 private static List<Runner> buildRunners(Class<?> klass) throws IOException, ClassNotFoundException, InitializationError {
     P5LibrarySets librarySet = klass.getAnnotation(P5LibrarySets.class);
@@ -232,7 +234,7 @@ private static List<Runner> buildRunners(Class<?> klass) throws IOException, Cla
 
 the [P5ClassLoaderChangerRunner](src/main/java/io/github/arnaudroger/tmvl/P5ClassLoaderChangerRunner.java) just set the context class loader before running the test and restore it after.
 
-[]P5LibrarySetClassLoader](src/main/java/io/github/arnaudroger/tmvl/P5LibrarySetClassLoader.java) is the same as the ClassLoader in P4 except for doing the transform from String to URL.
+[P5LibrarySetClassLoader](src/main/java/io/github/arnaudroger/tmvl/P5LibrarySetClassLoader.java) is the same as the ClassLoader in P4 except for doing the transform from String to URL.
 
 ```java
 private static URL[] toUrls(String[] libraries) throws IOException {
