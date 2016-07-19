@@ -1,19 +1,19 @@
-# How to write unit tests that run against multiple version of a library
+# How to write unit tests that run against multiple versions of a library
 
 ## Why?
 
-When you are writing a library it might run against different versions of a dependency that you might want to support. 
-The datastax module for example was develop against the version 2.1.8 of the driver, but the version 3.0.3 has recently been release and it's behavior is slightly different.
+When you are writing a library it might run against different versions of a dependency which you may want to support. 
+The [DataStax](https://www.datastax.com), module for example was developed against Version 2.1.8 of the driver, but Version 3.0.3 has recently been released - and its behavior is slightly different.
 
 On the code side I can use reflection to deal with the difference. For the test side though,
-I started by created a new maven module to test against datastax 3.0.3. 
-The problem is that it introduce a duplication of test and it's not very scalable.
+I started by creating a new maven module to test against the newer version, DataStax v3.0.3. 
+The problem with this solution is that it introduces a duplication of test code and it's not very scalable.
 
 Would it not be nice to be able to run the regular test against both version of the library?
 
 ## ClassLoader to the rescue
 
-A servlet container needs to be able to load classes in isolation for each webapp, to do that each webapp as its own
+A servlet container needs to be able to load classes in isolation for each webapp, to do that each webapp has its own
 classloader. A class loaded from 2 different ClassLoader are not Equals and a webapp cannot access class from the other webapp.
 We can use the same mechanism to load both version of the library each with each own ClassLoader.
 
@@ -45,7 +45,7 @@ asciiClass18.equals(asciiClass19) = false
 19 - Ascii.toUpperCase('c') C
 ```
 
-The problem with that is that we need to use reflection to access the class methods.
+The problem with that is that we need to use reflection to access the class methods
 for that class. If we were to run compile code like :
 
 [GuavaUser.java](src/main/java/io/github/arnaudroger/tmvl/GuavaUser.java)
@@ -73,16 +73,16 @@ If were to just call
 
 ```
 
-we can see that the Ascii class is loaded by the currentClassLoader not our isolated classLoader.
+We can see that the Ascii class is loaded by the currentClassLoader not our isolated classLoader.
 For GuavaUser to be linked to the specific version we also need to load it from the same ClassLoader.
 
-if we just do
+If we just do:
 
 ```
 urlClassLoader18.loadClass(GuavaUser.class.getName());
 ```
 
-it will load GuavaUser from it's parent class loader that is currentClassLoader.
+It will load GuavaUser from its parent class loader, which is currentClassLoader. 
 We need to load GuavaUser from the UrlClassLoader by adding the location to the array of URL. But because
 the classloader load from the parent ClassLoader we also need to pass null as the parent.
 
@@ -102,7 +102,7 @@ the classloader load from the parent ClassLoader we also need to pass null as th
     urlClassLoader19.loadClass(GuavaUser.class.getName()).getMethod("toLowerCase", String.class).invoke(null, userName);
 ```
 
-then we get a different class loader for each GuavaUser class
+Then we get a different class loader for each GuavaUser class
 
 ```
 io.github.arnaudroger.tmvl.GuavaUser/classLoader = [http://repo1.maven.org/maven2/com/google/guava/guava/18.0/guava-18.0.jar, file:/Users/aroger/dev/github/blog/target/classes/]
@@ -111,7 +111,7 @@ io.github.arnaudroger.tmvl.GuavaUser/classLoader = [http://repo1.maven.org/maven
 com.google.common.base.Ascii/classLoader = [http://repo1.maven.org/maven2/com/google/guava/guava/19.0/guava-19.0.jar, file:/Users/aroger/dev/github/blog/target/classes/]
 ```
 
-Now what if we use a Class that also need another dep?
+Now what if we use a Class that also needs another dep?
 
 [P3.java](src/main/java/io/github/arnaudroger/tmvl/P3.java)
 
@@ -180,7 +180,7 @@ org.apache.commons.lang3.StringUtils/classLoader = [file:/Library/Java/JavaVirtu
 Now that we have the code for our ClassLoader it would be nice to have that integrated in Junit.
 So we can just annotate our test Class with the library dependencies needed and it creates the suite of test for each library set.
 
-That would work like that
+For example:
 
 [P5Test.java](src/test/java/io/github/arnaudroger/tmvl/P5Test.java)
 ```java
@@ -249,24 +249,26 @@ private static URL[] toUrls(String[] libraries) throws IOException {
 }
 ```
 
-and Here you go, bob is your uncle, we have a declarative way to run our tests against multiple versions of the same library.
+And there you go, bob's your uncle, we have a declarative way to run our tests against multiple versions of the same library.
 
 ## What's next
 
-Also it works, the management of the url can become cumbersome when you need to add more libraries in the classpath. It is possible
-to give a list of classes you want to load from the classloader and write some code that will find where that class is loaded from to add it to the list of URL.
-You might also need to exclude some class from that class loader, surefire create a big jar of everything and if you do url discovery
+The management of the URLs can become cumbersome as your dependancies grow and you need to add more libraries in the classpath. 
+It is possible to provide a list of classes you wish to load from the ClassLoader and write some code to find where each class is loaded from and add each to the list of URLs.
+
+You may also need to exclude some classes from that ClassLoader - surefire creates a large jar of everything and if you perform URL discovery
 it will pick that jar and @Test.class with it. Then the runner won't recognize the @Test annotation on the class as they have different ClassLoaders.
-so you will need to exclude any junit class.
+So ensure you avoid any junit classes being added to the URLs within the annotation.
 
 ## ClassLoader leakage
 
-Some of the test might end up registering Class that reference the ClassLoader in a ThreadLocal making it reachable even
-after the test run. You might have exclude those Classes from the ClassLoader - netty has some of those -.
+Some of the tests might end up registering Classes which reference the ClassLoader in a ThreadLocal, making it reachable even
+after the test run. 
+You might have exclude those Classes from the ClassLoader - netty has some of those.
 To find those do a Heapdump and load it in [MAT](http://www.eclipse.org/mat/), find your ClassLoader and look for path to gc root.
 
-Some other classes might need to be exclude if you get ClassCastException.
-If so you probably want to add a validation of the version of the library the test is running against.
+Some other classes might need to be excluded if you get ClassCastException.
+If so you probably want to add a validation check for the version of the library which the test is running against.
 
 
 
