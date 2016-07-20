@@ -140,7 +140,7 @@ Caused by: java.lang.ClassNotFoundException: org.apache.commons.lang3.StringUtil
 ```
 
 The class loader could not resolve commons-lang3. We just need to create our own ClassLoader that will delegate to
-the app classloader when it does not find a class.
+the a classloader able to load it when it's not found by ours. The ClassLoader that loaded P4 here will be able to do that.
 
 [P4.java](src/main/java/io/github/arnaudroger/tmvl/P4.java)
 ```java
