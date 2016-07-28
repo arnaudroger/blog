@@ -89,13 +89,13 @@ et Voila!
 
 ### ClassLoaders
 
-The ClassLoader hierarchy is slightly change. When you start your application you won't get an URLClassLoader. if your
-code rely on that ... your will need to change that.
+The ClassLoader hierarchy is slightly changed. When you start your application you won't get an URLClassLoader. if your
+code rely on that ... your will need to change it.
 
 ## third party library
 
-Some thirdparty library depends on part of the jdk that is not accessible anymore. You might need to add instruction
-to export those either when running the unit test or on the compiler - for preprocessor, not that you will need to
+Some third-party libraries depend on part of the jre that is no more accessible. You might need to add instruction
+to export those when running the unit tests or compiling - for preprocessor, note that you will need to
 then fork javac.
 
 for the test
@@ -182,3 +182,27 @@ To get the preprocessor as far as you can you will need to add the following to 
     <arg>-J-XaddExports:jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
 </compilerArgs>
 ```
+
+
+### Osgi bundle
+
+BND seems to work pretty well, there is only 2 config to add.
+
+ * _noee, it does not recognise the java version and can't generate the Require-Capabilities.
+ * _failok, it fails on the module-info.class being at the root package.
+
+```xml
+<plugin>
+    <groupId>org.apache.felix</groupId>
+    <artifactId>maven-bundle-plugin</artifactId>
+    <extensions>true</extensions>
+    <version>3.2.0</version>
+    <configuration>
+        <instructions>
+            <_noee>true</_noee>
+            <_failok>true</_failok>
+        </instructions>
+    </configuration>
+</plugin>
+```
+
