@@ -1,11 +1,9 @@
 # Why you should replace your return List<T> with a Consumer<T> parameter
 
 It is common practice to have your Service layer, Dao layer etc... 
-return a List or Collection of objects when communicating back 
-multiple instance of data.
+return a List or Collection of objects as a result of the call.
 
-
-But I'm gonna argue that if instead of
+But I will argue that if instead of
 
 ```java
  List<T> getAllMyTs()
@@ -17,7 +15,7 @@ we uses
  produceAllMyTs(Consumer<T> consumer)
 ```
 
-we end up with more scalable and easy to maintain code.
+we end up with more scalable and easier to maintain code.
 
 ## A tale of 2 services
  
@@ -39,7 +37,7 @@ public class SClassicService {
 ```
 
 we return a List<String> that we get from a stream return by our DAO. We make it the
-responsibility of the service to choose an appropriate data structure to store the objects.
+responsibility of the service to choose an appropriate data structure to store the result.
 
 In our Producer Service
 
@@ -58,10 +56,11 @@ public class SProducerService {
 }
 ```
 
-we use the Consumer interface as a way to communicate each object. It's the responsability of 
-the caller to store it in a data structure if needed. If not we don't create an extra list.
+we use the Consumer interface as a way to communicate each element. 
+It's the responsibility of the caller to decide what to do with it. 
+If we don't need to have a List we won't need to create one - when do we really need? -.
 
-For small amount of data it does not matter, but if you fetching a few 100 000s and don't need to 
+For small amount of data it may not matter, but if you fetching a few 100 000s and don't need to 
 store them in a list it can make a big difference.
 
 Let's imagine a simple class that uses the service and output it to the console.
@@ -79,7 +78,7 @@ service.produceStrings(System.out::println);
 In the classic world we won't start printing the data until 
 they have all been put in the list.
 
-So if we have use DSlowDAO nothing happens for a while and then all of a sudden we display all
+So if we have use [DSlowDAO]((src/main/java/io/github/arnaudroger/consumer/service/DSlowDAO.java)) nothing happens for a while and then all of a sudden we display all
 the data.
 
 If the Consumer was slow, we would fetch all the data and keep them all in memory until the last is consumed.
@@ -87,13 +86,13 @@ If the Consumer was slow, we would fetch all the data and keep them all in memor
 
 In the producer world only the one currently being processed is alive. If the producer is slow 
 we will output the value as soon as they arrive. If the consumer is slow we will not
-produce the next value until the consumer is ready.
+produce the next value until the consumer is ready to consume it.
 Those are great properties to have in your system. 
 
 
 ## A tale of 2 functional interfaces
 
-Another advantages to use the Consumer approach is when you need to be able to compose Producers.
+The Consumer approach is also easier to compose.
 
 When you use a Supplier 
 ```java
@@ -111,7 +110,7 @@ public interface ListSupplier<T> {
 }
 ```
 
-to compose to supplier you will need to recreate a new list at dump the list from the 
+you will need to recreate a new list and add the list from the 
 2 suppliers. That's a total of 3 Lists being created.
 
 
