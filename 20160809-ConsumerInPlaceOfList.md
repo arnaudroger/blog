@@ -78,7 +78,7 @@ service.produceStrings(System.out::println);
 In the classic world we won't start printing the data until 
 they have all been put in the list.
 
-So if we have use [DSlowDAO]((src/main/java/io/github/arnaudroger/consumer/service/DSlowDAO.java)) nothing happens for a while and then all of a sudden we display all
+So if we have use [DSlowDAO](src/main/java/io/github/arnaudroger/consumer/service/DSlowDAO.java) nothing happens for a while and then all of a sudden we display all
 the data.
 
 If the Consumer was slow, we would fetch all the data and keep them all in memory until the last is consumed.
