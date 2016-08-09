@@ -21,7 +21,7 @@ we end up with more scalable and easier to maintain code.
  
 In our Classic Service 
 
-```
+```java
 public class SClassicService {
 
     private final DAO dao;
@@ -41,7 +41,7 @@ responsibility of the service to choose an appropriate data structure to store t
 
 In our Producer Service
 
-```
+```java
 public class SProducerService {
     private final DAO dao;
 
@@ -146,7 +146,7 @@ service.produceStrings(list:add);
 
 you could also make the producer return the consumer 
 
-```
+```java
 public <C extends Consumer<String>> produceString(C consumer) {
     ...
     return consumer;
@@ -154,7 +154,7 @@ public <C extends Consumer<String>> produceString(C consumer) {
 ```
 
 and create a 
-```
+```java
 class ToListConsumer<T> implements Consumer<T> {
     List<T> list = new ArrayList<>();
     
