@@ -173,3 +173,47 @@ you can now do
 ```java
 List<String> list = service.produceStrings(new ToListConsumer<String>()).get();
 ```
+
+## My DAO layer return a List?
+
+There is still some benefits if you can't remove the List creation. The consumer is called 
+inside the transaction, no need for the dreadful open session in view filter.
+
+Unfortunately JPA does not seem to support ScrollablResults but Hibernate does so if you use
+that implementation you can change your code to fetch only a few items at a time.
+
+If you use spring jdbc then just use the RowCallBackHandler map the object and callback the consumer.
+
+```java
+template.query(sql, rs -> consumer.apply(rowMapper.map(rs)));
+```
+
+jOOQ and SimpleFlatMapper already support a consumer callback.
+
+```java
+// jooq
+jooqQuery.fetchInto(System.out::println);
+jooqQuery.fetchStream().forEach(System.out::println);
+
+// sfm
+mapper.forEach(resultSet, System.out::println);
+mapper.stream(resultSet).forEach(System.out::println);
+```
+
+## Using that pattern even when it return a single Entry?
+
+The consumer can be use with 0 to n number of elements.
+It's a pretty good alternative to returning Optional<T>.
+
+```
+service.getOptionalValue().ifPresent(consumer);
+```
+
+becomes
+
+```
+service.produceOptionalValue(consumer);
+```
+
+
+
