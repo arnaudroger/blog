@@ -156,6 +156,10 @@ public <C extends Consumer<String>> produceString(C consumer) {
 and create a 
 ```java
 class ToListConsumer<T> implements Consumer<T> {
+    public static <T> ToListConsumer<T> toList() {
+        return new ToListConsumer<T>();
+    }
+
     List<T> list = new ArrayList<>();
     
     void accept(T t) {
@@ -171,7 +175,7 @@ class ToListConsumer<T> implements Consumer<T> {
 
 you can now do 
 ```java
-List<String> list = service.produceStrings(new ToListConsumer<String>()).get();
+List<String> list = service.produceStrings(ToListConsumer.toList()).get();
 ```
 
 ## My DAO layer return a List?
@@ -214,6 +218,4 @@ becomes
 ```
 service.produceOptionalValue(consumer);
 ```
-
-
 
