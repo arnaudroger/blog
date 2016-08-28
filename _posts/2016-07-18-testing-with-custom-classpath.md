@@ -1,3 +1,6 @@
+---
+layout: post
+---
 # How to write unit tests that run against multiple versions of a library
 
 ## Why?
@@ -17,8 +20,8 @@ A servlet container needs to be able to load classes in isolation for each webap
 classloader. A class loaded from 2 different ClassLoader are not Equals and a webapp cannot access class from the other webapp.
 We can use the same mechanism to load both version of the library each with each own ClassLoader.
 
-[P1.java](src/main/java/io/github/arnaudroger/tmvl/P1.java)
-```java
+[P1.java](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/P1.java)
+{% highlight java %}
 URLClassLoader urlClassLoader18 = new URLClassLoader(
         new URL[] { new URL(GUAVA_REPO + "/18.0/guava-18.0.jar") },
         currentClassLoader);
@@ -35,21 +38,21 @@ System.out.println("18 - Ascii.toUpperCase('c') = "
     + asciiClass18.getMethod("toUpperCase", char.class).invoke(null, 'c'));
 System.out.println("19 - Ascii.toUpperCase('c') = "
     + asciiClass19.getMethod("toUpperCase", char.class).invoke(null, 'c'));
-```
+{% endhighlight %}
 
 That code loads version 18 and 19 of the Ascii class and execute the toUpperCase on each.
 
-```
+{% highlight java %}
 asciiClass18.equals(asciiClass19) = false
 18 - Ascii.toUpperCase('c') C
 19 - Ascii.toUpperCase('c') C
-```
+{% endhighlight %}
 
 The problem with that is that we need to use reflection to access the class methods
 for that class. If we were to run compile code like :
 
-[GuavaUser.java](src/main/java/io/github/arnaudroger/tmvl/GuavaUser.java)
-```java
+[GuavaUser.java](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/GuavaUser.java)
+{% highlight java %}
 public class GuavaUser {
     public static String toLowerCase(String str) {
         printClassLoader(GuavaUser.class);
@@ -65,29 +68,30 @@ public class GuavaUser {
         }
     }
 }
-```
+{% endhighlight %}
+
 If were to just call
 
-```java
+{% highlight java %}
     GuavaUser.toLowerCase(System.getProperty("user.name"));
 
-```
+{% endhighlight %}
 
 We can see that the Ascii class is loaded by the currentClassLoader not our isolated classLoader.
 For GuavaUser to be linked to the specific version we also need to load it from the same ClassLoader.
 
 If we just do:
 
-```
+{% highlight java %}
 urlClassLoader18.loadClass(GuavaUser.class.getName());
-```
+{% endhighlight %}
 
 It will load GuavaUser from its parent class loader, which is currentClassLoader. 
 We need to load GuavaUser from the UrlClassLoader by adding the location to the array of URL. But because
 the classloader load from the parent ClassLoader we also need to pass null as the parent.
 
-[P2.java](src/main/java/io/github/arnaudroger/tmvl/P2.java)
-```java
+[P2.java](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/P2.java)
+{% highlight java %}
     URL targetClassUrl = new File("target/classes").toURI().toURL();
     URLClassLoader urlClassLoader18 = new URLClassLoader(
         new URL[] { new URL(GUAVA_REPO + "/18.0/guava-18.0.jar"), targetClassUrl },
@@ -100,7 +104,7 @@ the classloader load from the parent ClassLoader we also need to pass null as th
 
     urlClassLoader18.loadClass(GuavaUser.class.getName()).getMethod("toLowerCase", String.class).invoke(null, userName);
     urlClassLoader19.loadClass(GuavaUser.class.getName()).getMethod("toLowerCase", String.class).invoke(null, userName);
-```
+{% endhighlight %}
 
 Then we get a different class loader for each GuavaUser class
 
@@ -113,10 +117,10 @@ com.google.common.base.Ascii/classLoader = [http://repo1.maven.org/maven2/com/go
 
 Now what if we use a Class that also needs another dep?
 
-[P3.java](src/main/java/io/github/arnaudroger/tmvl/P3.java)
+[P3.java](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/P3.java)
 
-[GuavaAndCommonUser.java](src/main/java/io/github/arnaudroger/tmvl/GuavaAndCommonUser.java)
-```java
+[GuavaAndCommonUser.java](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/GuavaAndCommonUser.java)
+{% highlight java %}
 public static String toLowerCase(String str) {
     printClassLoader(GuavaAndCommonUser.class);
     printClassLoader(Ascii.class);
@@ -127,7 +131,7 @@ public static String toLowerCase(String str) {
     }
     return str;
 }
-```
+{% endhighlight %}
 
 we get
 
@@ -142,8 +146,8 @@ Caused by: java.lang.ClassNotFoundException: org.apache.commons.lang3.StringUtil
 The class loader could not resolve commons-lang3. We just need to create our own ClassLoader that will delegate to
 the a classloader able to load it when it's not found by ours. The ClassLoader that loaded P4 here will be able to do that.
 
-[P4.java](src/main/java/io/github/arnaudroger/tmvl/P4.java)
-```java
+[P4.java](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/P4.java)
+{% highlight java %}
     public static class P4ClassLoader extends URLClassLoader {
 
         private final ClassLoader delegate;
@@ -161,7 +165,7 @@ the a classloader able to load it when it's not found by ours. The ClassLoader t
             }
         }
     }
-```
+{% endhighlight %}
 
 the loop is looped. for now.
 
@@ -183,7 +187,7 @@ So we can just annotate our test Class with the library dependencies needed and 
 For example:
 
 [P5Test.java](src/test/java/io/github/arnaudroger/tmvl/P5Test.java)
-```java
+{% highlight java %}
 @RunWith(MultiClassLoaderJunitRunner.class)
 @LibrarySets(
         librarySets = {
@@ -197,12 +201,12 @@ class P5Test {
         assertEquals("AAAA", GuavaAndCommonUser.toUpperCase("AAaa"));
     }
 }
-```
+{% endhighlight %}
 
 The Runner extends Suite and build the list of runners by looking at the LibrarySets annotation.
 
-[P5MultiClassLoaderJunitRunner.java](src/main/java/io/github/arnaudroger/tmvl/P5MultiClassLoaderJunitRunner.java)
-```java
+[P5MultiClassLoaderJunitRunner.java](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/P5MultiClassLoaderJunitRunner.java)
+{% highlight java %}
 private static List<Runner> buildRunners(Class<?> klass) throws IOException, ClassNotFoundException, InitializationError {
     P5LibrarySets librarySet = klass.getAnnotation(P5LibrarySets.class);
     if (librarySet == null) throw new IllegalArgumentException("Class " + klass + " is missing P5LibrarySets annotation");
@@ -228,13 +232,13 @@ private static List<Runner> buildRunners(Class<?> klass) throws IOException, Cla
     }
     return runners;
 }
-```
+{% endhighlight %}
 
-The [P5ClassLoaderChangerRunner](src/main/java/io/github/arnaudroger/tmvl/P5ClassLoaderChangerRunner.java) just set the context class loader before running the test and restore it after.
+The [P5ClassLoaderChangerRunner](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/P5ClassLoaderChangerRunner.java) just set the context class loader before running the test and restore it after.
 
-[P5LibrarySetClassLoader](src/main/java/io/github/arnaudroger/tmvl/P5LibrarySetClassLoader.java) is the same as the ClassLoader in P4 plus the transform from String to URL.
+[P5LibrarySetClassLoader](https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/tmvl/P5LibrarySetClassLoader.java) is the same as the ClassLoader in P4 plus the transform from String to URL.
 
-```java
+{% highlight java %}
 private static URL[] toUrls(String[] libraries) throws IOException {
     return Arrays.stream(libraries).map((s) -> {
         try {
@@ -247,7 +251,7 @@ private static URL[] toUrls(String[] libraries) throws IOException {
         }
     }).toArray(URL[]::new);
 }
-```
+{% endhighlight %}
 
 And there you go, bob's your uncle, we have a declarative way to run our tests against multiple versions of the same library.
 

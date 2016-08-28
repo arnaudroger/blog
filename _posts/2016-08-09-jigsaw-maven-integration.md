@@ -1,3 +1,6 @@
+---
+layout: post
+---
 # Maven building java 9-ea with jigsaw
 
 If you don't have a module-info.java then you don't need to change anything.
@@ -29,21 +32,21 @@ you can now use the plugin from your local repo.
 
 I also have a version built available by adding the following to your pom
 
-```xml
+{% highlight xml %}
 <pluginRepositories>
     <pluginRepository>
         <id>arnaudroger-maven-plugin-repository</id>
         <url>https://arnaudroger.github.io/maven</url>
     </pluginRepository>
 </pluginRepositories>
-```
+{% endhighlight %}
 
 ### profile
 
 all you need to do now is to add a profile for jdk 9-ea with that plugin.
 You will also need to overwrite the asm dependency to 6.0_ALPHA to support the new bytecode version.
 
-```xml
+{% highlight xml %}
    <profile>
         <id>jdk19</id>
         <activation>
@@ -70,7 +73,7 @@ You will also need to overwrite the asm dependency to 6.0_ALPHA to support the n
             </plugins>
         </build>
     </profile>
-```
+{% endhighlight %}
 
 ## module-info.java
 
@@ -79,9 +82,9 @@ The jigsaw maven-compiler-plugin will compile will switch to the modular build i
 You can find more info at [Jigsaw QuickStart](http://openjdk.java.net/projects/jigsaw/quick-start).
 start with a empty one see what you need to import.
 
-```
+{% highlight java %}
 module mypackage {}
-```
+{% endhighlight %}
 
 et Voila!
 
@@ -99,7 +102,7 @@ to export those when running the unit tests or compiling - for preprocessor, not
 then fork javac.
 
 for the test
-```xml
+{% highlight xml %}
 <profile>
     <id>jdk19</id>
     <activation>
@@ -117,11 +120,11 @@ for the test
         </plugins>
     </build>
 </profile>
-```
+{% endhighlight %}
 
 for the javac
 
-```xml
+{% highlight xml %}
 <plugin>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-compiler-plugin</artifactId>
@@ -143,13 +146,13 @@ for the javac
         </dependency>
     </dependencies>
 </plugin>
-```
+{% endhighlight %}
 
 you can verify which dependencies a jar has by using jdeps
 
-```bash
+{% highlight bash %}
 jdeps ~/.m2/repository/io/netty/netty-all/4.0.39.Final/netty-all-4.0.39.Final.jar
-```
+{% endhighlight %}
 
 ### netty
 You will need to export the following packages to run the code
@@ -170,7 +173,7 @@ Currently as of 1.16.10 Lombok still has issues with java9 as it relies on class
 
 To get the preprocessor as far as you can you will need to add the following to the maven-compiler-plugin configuration.
 
-```
+{% highlight xml %}
 <compilerArgs>
     <arg>-J-XaddExports:jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
     <arg>-J-XaddExports:jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
@@ -181,7 +184,7 @@ To get the preprocessor as far as you can you will need to add the following to 
     <arg>-J-XaddExports:jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
     <arg>-J-XaddExports:jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
 </compilerArgs>
-```
+{% endhighlight %}
 
 
 ### Osgi bundle
@@ -191,7 +194,7 @@ BND seems to work pretty well, there is only 2 config to add.
  * _noee, it does not recognise the java version and can't generate the Require-Capabilities.
  * _failok, it fails on the module-info.class being at the root package.
 
-```xml
+{% highlight xml %}
 <plugin>
     <groupId>org.apache.felix</groupId>
     <artifactId>maven-bundle-plugin</artifactId>
@@ -204,5 +207,5 @@ BND seems to work pretty well, there is only 2 config to add.
         </instructions>
     </configuration>
 </plugin>
-```
+{% endhighlight %}
 
