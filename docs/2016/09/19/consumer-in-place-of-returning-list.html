@@ -61,17 +61,16 @@
         <h1 id="why-you-should-replace-your-return-listt-with-a-consumert-parameter">Why you should replace your return List<T> with a Consumer<T> parameter</T></T></h1>
 
 <p>It is common practice to have your Service layer, Dao layer etc… 
-return a List or Collection of objects as a result of the call.</p>
-
-<p>But I will argue that if instead of</p>
+return a List<T> or Collection<T> as a result of the call.</T></T></p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"> <span class="n">List</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nf">getAllMyTs</span><span class="o">()</span></code></pre></figure>
 
-<p>we uses</p>
+<p>but with the introduction of lambdas in java 8, the use of callback has become far cheaper
+and user a Consumer<T> as a parameter</T></p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"> <span class="n">produceAllMyTs</span><span class="o">(</span><span class="n">Consumer</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">consumer</span><span class="o">)</span></code></pre></figure>
 
-<p>we end up with more scalable and easier to maintain code.</p>
+<p>could make your code less couple, easier to maintain and more scalable.</p>
 
 <h2 id="a-tale-of-2-services">A tale of 2 services</h2>
 
@@ -158,7 +157,7 @@ Those are great properties to have in your system.</p>
 <span class="o">}</span></code></pre></figure>
 
 <p>you will need to recreate a new list and add the list from the 
-2 suppliers. That’s a total of 3 Lists being created.</p>
+2 suppliers, a total of 3 Lists being created.</p>
 
 <p>But using a producer</p>
 
@@ -180,7 +179,7 @@ to create the data structure to store the objects.</p>
 
 <h2 id="what-if-the-consumer-needs-a-list">What if the consumer needs a list?</h2>
 
-<p>Just do</p>
+<p>You can just use the List as a consumer</p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">list</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
 <span class="n">service</span><span class="o">.</span><span class="na">produceStrings</span><span class="o">(</span><span class="nl">list:</span><span class="n">add</span><span class="o">);</span></code></pre></figure>
@@ -222,7 +221,7 @@ inside the transaction, no need for the dreadful open session in view filter.</p
 <p>Unfortunately JPA does not seem to support ScrollablResults but Hibernate does so if you use
 that implementation you can change your code to fetch only a few items at a time.</p>
 
-<p>If you use spring jdbc then just use the RowCallBackHandler map the object and callback the consumer.</p>
+<p>If you use spring jdbc then just use the RowCallBackHandler, map the object and callback the consumer.</p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="n">template</span><span class="o">.</span><span class="na">query</span><span class="o">(</span><span class="n">sql</span><span class="o">,</span> <span class="n">rs</span> <span class="o">-&gt;</span> <span class="n">consumer</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">rowMapper</span><span class="o">.</span><span class="na">map</span><span class="o">(</span><span class="n">rs</span><span class="o">)));</span></code></pre></figure>
 
@@ -239,7 +238,7 @@ that implementation you can change your code to fetch only a few items at a time
 <h2 id="using-that-pattern-even-when-it-return-a-single-entry">Using that pattern even when it return a single Entry?</h2>
 
 <p>The consumer can be use with 0 to n number of elements.
-It’s a pretty good alternative to returning Optional<T>.</T></p>
+It’s a good alternative to returning Optional<T>.</T></p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="n">service</span><span class="o">.</span><span class="na">getOptionalValue</span><span class="o">().</span><span class="na">ifPresent</span><span class="o">(</span><span class="n">consumer</span><span class="o">);</span></code></pre></figure>
 
@@ -252,8 +251,6 @@ It’s a pretty good alternative to returning Optional<T>.</T></p>
 <p>Using a consumer allow you to build more flexible and more reactive interface without changing your design too much. 
 It’s very straightforward and can help reduce the coupling of your application. There is nothing new there but
 java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s time to get back to message passing.</p>
-
-<p>A consumer is just a callback, and callbacks allow to deal with more complex behavior like multiple return type, error handling.</p>
 
 
     </div>
