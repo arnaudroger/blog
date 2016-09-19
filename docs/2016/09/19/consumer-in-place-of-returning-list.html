@@ -83,8 +83,9 @@ and user a Consumer<T> as a parameter</T></p>
     <span class="o">}</span>
 <span class="o">}</span></code></pre></figure>
 
-<p>we return a List<String> that we get from a stream return by our DAO. We make it the
-responsibility of the service to choose an appropriate data structure to store the result.</String></p>
+<p>we return a List<String> that we get from our DAO. We make it the
+responsibility of the service to choose an appropriate data structure to store the result, 
+ArrayList or LinkedList?, ImmutableList?</String></p>
 
 <p>In our Producer Service</p>
 
@@ -98,7 +99,7 @@ responsibility of the service to choose an appropriate data structure to store t
 
 <p>we use the Consumer interface as a way to communicate each element. 
 It’s the responsibility of the caller to decide what to do with it. 
-If we don’t need to have a List we won’t need to create one - when do we really need? -.</p>
+If we don’t need to have a List we won’t need to create one - when do we need it? some framework push you towards that but there is always a way to do without -.</p>
 
 <p>For small amount of data it may not matter, but if you fetching a few 100 000s and don’t need to 
 store them in a list it can make a big difference.</p>
@@ -145,8 +146,7 @@ Those are great properties to have in your system.</p>
     <span class="o">}</span>
 <span class="o">}</span></code></pre></figure>
 
-<p>you will need to recreate a new list and add the list from the 
-2 suppliers, a total of 3 Lists being created.</p>
+<p>you will need to create 3 Lists.</p>
 
 <p>But using a producer</p>
 
@@ -162,7 +162,7 @@ Those are great properties to have in your system.</p>
     <span class="o">}</span>
 <span class="o">}</span></code></pre></figure>
 
-<p>you just need to call on the first producer and then on the second.
+<p>you just need to call on the first producer then the second.
 no more garbage created because it is not the responsibility of the producer
 to create the data structure to store the objects.</p>
 
@@ -173,14 +173,14 @@ to create the data structure to store the objects.</p>
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">list</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
 <span class="n">service</span><span class="o">.</span><span class="na">produceStrings</span><span class="o">(</span><span class="nl">list:</span><span class="n">add</span><span class="o">);</span></code></pre></figure>
 
-<p>you could also make the producer return the consumer</p>
+<p>you could also make the producer return the consumer with the actual type using the following generic signature</p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="o">&lt;</span><span class="n">C</span> <span class="kd">extends</span> <span class="n">Consumer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;&gt;</span> <span class="nf">produceString</span><span class="o">(</span><span class="n">C</span> <span class="n">consumer</span><span class="o">)</span> <span class="o">{</span>
     <span class="o">...</span>
     <span class="k">return</span> <span class="n">consumer</span><span class="o">;</span>
 <span class="o">}</span></code></pre></figure>
 
-<p>and create a</p>
+<p>then create generic ToListConsumer</p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="kd">class</span> <span class="nc">ToListConsumer</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="kd">implements</span> <span class="n">Consumer</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="o">{</span>
     <span class="kd">public</span> <span class="kd">static</span> <span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">ToListConsumer</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="nf">toList</span><span class="o">()</span> <span class="o">{</span>
@@ -198,7 +198,7 @@ to create the data structure to store the objects.</p>
     <span class="o">}</span>
 <span class="o">}</span></code></pre></figure>
 
-<p>you can now do</p>
+<p>you can now chain the consumer call with the list fetching.</p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">list</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="na">produceStrings</span><span class="o">(</span><span class="n">ToListConsumer</span><span class="o">.</span><span class="na">toList</span><span class="o">()).</span><span class="na">get</span><span class="o">();</span></code></pre></figure>
 
