@@ -78,14 +78,8 @@ and user a Consumer<T> as a parameter</T></p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">SClassicService</span> <span class="o">{</span>
 
-    <span class="kd">private</span> <span class="kd">final</span> <span class="n">DAO</span> <span class="n">dao</span><span class="o">;</span>
-
-    <span class="kd">public</span> <span class="nf">SClassicService</span><span class="o">(</span><span class="n">DAO</span> <span class="n">dao</span><span class="o">)</span> <span class="o">{</span>
-        <span class="k">this</span><span class="o">.</span><span class="na">dao</span> <span class="o">=</span> <span class="n">dao</span><span class="o">;</span>
-    <span class="o">}</span>
-
     <span class="kd">public</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="nf">getStrings</span><span class="o">()</span> <span class="o">{</span>
-        <span class="k">return</span> <span class="n">dao</span><span class="o">.</span><span class="na">stream</span><span class="o">().</span><span class="na">collect</span><span class="o">(</span><span class="n">Collectors</span><span class="o">.</span><span class="na">toList</span><span class="o">());</span>
+        <span class="c1">// ...</span>
     <span class="o">}</span>
 <span class="o">}</span></code></pre></figure>
 
@@ -95,14 +89,9 @@ responsibility of the service to choose an appropriate data structure to store t
 <p>In our Producer Service</p>
 
 <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">SProducerService</span> <span class="o">{</span>
-    <span class="kd">private</span> <span class="kd">final</span> <span class="n">DAO</span> <span class="n">dao</span><span class="o">;</span>
-
-    <span class="kd">public</span> <span class="nf">SProducerService</span><span class="o">(</span><span class="n">DAO</span> <span class="n">dao</span><span class="o">)</span> <span class="o">{</span>
-        <span class="k">this</span><span class="o">.</span><span class="na">dao</span> <span class="o">=</span> <span class="n">dao</span><span class="o">;</span>
-    <span class="o">}</span>
 
     <span class="kd">public</span> <span class="kt">void</span> <span class="nf">produceStrings</span><span class="o">(</span><span class="n">Consumer</span><span class="o">&lt;?</span> <span class="kd">super</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">consumer</span><span class="o">)</span> <span class="o">{</span>
-        <span class="n">dao</span><span class="o">.</span><span class="na">stream</span><span class="o">().</span><span class="na">forEach</span><span class="o">(</span><span class="n">consumer</span><span class="o">);</span>
+        <span class="c1">// ...</span>
     <span class="o">}</span>
 
 <span class="o">}</span></code></pre></figure>
