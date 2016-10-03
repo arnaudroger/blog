@@ -1,24 +1,24 @@
 ---
 layout: post
+date: 2016-09-19
 ---
 # Why you should replace your return List<T> with a Consumer<T> parameter
 
 It is common practice to have your Service layer, Dao layer etc... 
-return a List or Collection of objects as a result of the call.
-
-But I will argue that if instead of
+return a List<T> or Collection<T> as a result of the call.
 
 {% highlight java %}
  List<T> getAllMyTs()
 {% endhighlight %}
 
-we uses
+but with the introduction of lambdas in java 8, the use of callback has become far cheaper
+and user a Consumer<T> as a parameter 
 
 {% highlight java %}
  produceAllMyTs(Consumer<T> consumer)
 {% endhighlight %}
 
-we end up with more scalable and easier to maintain code.
+could make your code less couple, easier to maintain and more scalable.
 
 ## A tale of 2 services
  
@@ -27,33 +27,23 @@ In our Classic Service
 {% highlight java %}
 public class SClassicService {
 
-    private final DAO dao;
-
-    public SClassicService(DAO dao) {
-        this.dao = dao;
-    }
-
     public List<String> getStrings() {
-        return dao.stream().collect(Collectors.toList());
+        // ...
     }
 }
 {% endhighlight %}
 
-we return a List<String> that we get from a stream return by our DAO. We make it the
-responsibility of the service to choose an appropriate data structure to store the result.
+we return a List<String> that we get from our DAO. We make it the
+responsibility of the service to choose an appropriate data structure to store the result, 
+ArrayList or LinkedList?, ImmutableList?
 
 In our Producer Service
 
 {% highlight java %}
 public class SProducerService {
-    private final DAO dao;
-
-    public SProducerService(DAO dao) {
-        this.dao = dao;
-    }
 
     public void produceStrings(Consumer<? super String> consumer) {
-        dao.stream().forEach(consumer);
+        // ...
     }
 
 }
@@ -61,7 +51,7 @@ public class SProducerService {
 
 we use the Consumer interface as a way to communicate each element. 
 It's the responsibility of the caller to decide what to do with it. 
-If we don't need to have a List we won't need to create one - when do we really need? -.
+If we don't need to have a List we won't need to create one - when do we need it? some framework push you towards that but there is always a way to do without -.
 
 For small amount of data it may not matter, but if you fetching a few 100 000s and don't need to 
 store them in a list it can make a big difference.
@@ -86,12 +76,10 @@ the data.
 
 If the Consumer was slow, we would fetch all the data and keep them all in memory until the last is consumed.
 
-
 In the producer world only the one currently being processed is alive. If the producer is slow 
 we will output the value as soon as they arrive. If the consumer is slow we will not
 produce the next value until the consumer is ready to consume it.
 Those are great properties to have in your system. 
-
 
 ## A tale of 2 functional interfaces
 
@@ -113,9 +101,7 @@ public interface ListSupplier<T> {
 }
 {% endhighlight %}
 
-you will need to recreate a new list and add the list from the 
-2 suppliers. That's a total of 3 Lists being created.
-
+you will need to create 3 Lists.
 
 But using a producer
 
@@ -133,21 +119,21 @@ public interface Producer<T> {
 }
 {% endhighlight %}
 
-you just need to call on the first producer and then on the second.
+you just need to call on the first producer then the second.
 no more garbage created because it is not the responsibility of the producer
 to create the data structure to store the objects.
 
 
 ## What if the consumer needs a list?
 
-Just do 
+You can just use the List as a consumer
 
 {% highlight java %}
 List<String> list = new ArrayList<>;
 service.produceStrings(list:add);
 {% endhighlight %}
 
-you could also make the producer return the consumer 
+you could also make the producer return the consumer with the actual type using the following generic signature
 
 {% highlight java %}
 public <C extends Consumer<String>> produceString(C consumer) {
@@ -156,7 +142,8 @@ public <C extends Consumer<String>> produceString(C consumer) {
 }
 {% endhighlight %}
 
-and create a 
+then create generic ToListConsumer 
+
 {% highlight java %}
 class ToListConsumer<T> implements Consumer<T> {
     public static <T> ToListConsumer<T> toList() {
@@ -176,7 +163,7 @@ class ToListConsumer<T> implements Consumer<T> {
 
 {% endhighlight %}
 
-you can now do 
+you can now chain the consumer call with the list fetching. 
 {% highlight java %}
 List<String> list = service.produceStrings(ToListConsumer.toList()).get();
 {% endhighlight %}
@@ -189,7 +176,7 @@ inside the transaction, no need for the dreadful open session in view filter.
 Unfortunately JPA does not seem to support ScrollablResults but Hibernate does so if you use
 that implementation you can change your code to fetch only a few items at a time.
 
-If you use spring jdbc then just use the RowCallBackHandler map the object and callback the consumer.
+If you use spring jdbc then just use the RowCallBackHandler, map the object and callback the consumer.
 
 {% highlight java %}
 template.query(sql, rs -> consumer.apply(rowMapper.map(rs)));
@@ -210,7 +197,7 @@ mapper.stream(resultSet).forEach(System.out::println);
 ## Using that pattern even when it return a single Entry?
 
 The consumer can be use with 0 to n number of elements.
-It's a pretty good alternative to returning Optional<T>.
+It's a good alternative to returning Optional<T>.
 
 {% highlight java %}
 service.getOptionalValue().ifPresent(consumer);
@@ -227,8 +214,6 @@ service.produceOptionalValue(consumer);
 Using a consumer allow you to build more flexible and more reactive interface without changing your design too much. 
 It's very straightforward and can help reduce the coupling of your application. There is nothing new there but
 java8 with the addition of Lambdas made it a lot cheaper on the dev side. It's time to get back to message passing.
-
-A consumer is just a callback, and callbacks allow to deal with more complex behavior like multiple return type, error handling.
 
 
 
