@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Java Performance Puzzle</title>
+  <meta name="description" content="The csv parser that I wrote in SimpleFlatMapper uses a simple loop + state to parse a csv. The code is a lot simpler than other implementation I’ve seen and ...">
+
+  <link rel="stylesheet" href="/blog/css/main.css">
+  <link rel="canonical" href="http://arnaudroger.github.io/blog/2016/10/30/java-performance-puzzle.html">
+  <link rel="alternate" type="application/rss+xml" title="Eat Sleep Code Repeat." href="http://arnaudroger.github.io/blog/feed.xml">
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/blog/">Eat Sleep Code Repeat.</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+    <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">Java Performance Puzzle</h1>
+        <p class="post-meta"><time datetime="2016-10-30T00:00:00+01:00" itemprop="datePublished">Oct 30, 2016</time></p>
+    </header>
+
+    <div class="post-content" itemprop="articleBody">
+        <p><img src="/blog/images/20161030-asm-print-scale.JPG" style="float:right; margin:5px;" />
+The csv parser that I wrote in SimpleFlatMapper uses a simple loop + state to parse a csv.
+The code is a lot simpler than other implementation I’ve seen and at the time according to
+my test was faster. I was testing on java 7, 8 still being very new.</p>
+
+<p>When I ran it on java8 the result were quite confusing. Sometimes fast, sometimes slow.
+It did not take look to point to tiered compilation. Java 8 enabled it by default and by disabling
+it I obtained the same result as with java7.</p>
+
+<p>But knowing is not good enough, so I played around and after enough shuffling the problem disappeared.
+I did not know why and did not have time/skills to really dig into it, that was good enough and the end of
+it.</p>
+
+<p>Last week I started to address the code duplication in the parser. And faced that problem again.
+Eventually reduce the problem to a few line changes. And this time I decided I would
+figure it out. Following are the findings, more questions and some good news.</p>
+
+<h1 id="the-puzzle">The puzzle</h1>
+
+<p>I created a <a href="https://github.com/arnaudroger/sfm-csv-variability">githup repo</a> to isolate the behavior and gather some data.
+It uses a slightly simplified version of <a href="https://github.com/arnaudroger/SimpleFlatMapper/tree/master/sfm-csv">sfm-csv</a>
+and the benchmarking code <a href="https://github.com/arnaudroger/mapping-benchmark/tree/master/sfm-csv">mapping-benchmark</a>.
+The benchmark will parse locally <a href="http://www.maxmind.com/download/worldcities/worldcitiespop.txt.gz">worldcitiespop.txt</a>, 
+stores the cell in a String[] and pass that to the blackhole.</p>
+
+<p>There are two version <a href="https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig">orig</a> 
+that gives consistantly <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v1-ref.txt">fast result</a> and <a href="https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/alt">alt</a>
+that can give <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt">result similar</a> to orig or <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt">slow results</a>.</p>
+
+<p>The difference between slow an fast/orig being slightly more than 1.55x - as in fast time * 1.55 = slow time -.
+That is quite an impact. Specially when you consider the difference between alt and orig.</p>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="mi">28</span><span class="n">d27</span>
+<span class="o">&lt;</span>       <span class="kd">private</span> <span class="kt">int</span> <span class="n">cellStart</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+<span class="mi">160</span><span class="n">c157</span>
+<span class="o">&lt;</span>               <span class="n">pushCell</span><span class="o">(</span><span class="n">chars</span><span class="o">,</span> <span class="n">cellStart</span><span class="o">,</span> <span class="n">currentIndex</span><span class="o">,</span> <span class="n">cellConsumer</span><span class="o">);</span>
+<span class="o">---</span>
+<span class="o">&gt;</span>               <span class="n">pushCell</span><span class="o">(</span><span class="n">chars</span><span class="o">,</span> <span class="n">_csvBuffer</span><span class="o">.</span><span class="na">mark</span><span class="o">,</span> <span class="n">currentIndex</span><span class="o">,</span> <span class="n">cellConsumer</span><span class="o">);</span>
+<span class="mi">165</span><span class="n">c162</span>
+<span class="o">&lt;</span>               <span class="n">cellStart</span> <span class="o">=</span> <span class="n">currentIndex</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+<span class="o">---</span>
+<span class="o">&gt;</span>               <span class="n">_csvBuffer</span><span class="o">.</span><span class="na">mark</span> <span class="o">=</span> <span class="n">currentIndex</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+<span class="mi">169</span><span class="n">c166</span>
+<span class="o">&lt;</span>               <span class="k">return</span> <span class="n">_currentIndex</span> <span class="o">&gt;</span> <span class="n">cellStart</span><span class="o">;</span>
+<span class="o">---</span>
+<span class="o">&gt;</span>               <span class="k">return</span> <span class="n">_currentIndex</span> <span class="o">&gt;</span> <span class="n">_csvBuffer</span><span class="o">.</span><span class="na">mark</span><span class="o">;</span></code></pre></figure>
+
+<p>We moved the mark field from the CharBuffer to the CharConsumer. That should have no impact, especially not degrading performance.</p>
+
+<h1 id="the-data">The data</h1>
+
+<h2 id="flighrecorder-sampling">FlighRecorder sampling</h2>
+
+<p>It indicates that a slow run spend a lot more time in pushCell/newCell/String init/copy of range code.</p>
+
+<h2 id="perfasm">perfasm</h2>
+
+<p>That is confirmed by the <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt">perfasm run</a> which identify
+the area that does some arraycopy code as being that Hottest region for a slow run</p>
+
+<figure class="highlight"><pre><code class="language-asm" data-lang="asm"> 53.68%   58.22%         C2, level 4  org.github.arnaudroger.csv.alt.CharConsumer2::consumeAllBuffer, version 549 (264 bytes) 
+ 21.02%   19.52%         C2, level 4  org.github.arnaudroger.csv.alt.CharConsumer2::consumeAllBuffer, version 549 (1804 bytes) 
+  5.75%    6.87%         C2, level 4  sun.nio.cs.UTF_8$Decoder::decodeArrayLoop, version 656 (490 bytes) 
+  3.81%    4.20%        runtime stub  StubRoutines::jshort_disjoint_arraycopy (205 bytes)</code></pre></figure>
+
+<p>vs for a fast run</p>
+
+<figure class="highlight"><pre><code class="language-asm" data-lang="asm"> 29.11%   30.07%         C2, level 4  org.github.arnaudroger.csv.alt.CharConsumer2::consumeAllBuffer, version 584 (841 bytes) 
+ 25.56%   29.81%         C2, level 4  org.github.arnaudroger.csv.alt.CharConsumer2::consumeAllBuffer, version 584 (214 bytes) 
+ 10.93%   12.96%         C2, level 4  sun.nio.cs.UTF_8$Decoder::decodeArrayLoop, version 677 (902 bytes) 
+ 10.38%    8.84%        runtime stub  StubRoutines::jshort_disjoint_arraycopy (205 bytes) </code></pre></figure>
+
+<h2 id="jitwatch">jitwatch</h2>
+
+<p>Looking at the Chain graph in jitwatch we can seem some difference in inlining between 
+slow and fast.</p>
+
+<p>the endOfRow method called in consumeAllBuffer is not inline in the fast run. But
+in the orig ref run that method is inlined. so also it does make perf better for the alt version it does not cause an issue on the orig version.</p>
+
+<p><img src="/blog/images/20160130-jitwatch-chain-scale.png" style="margin:5px;" /></p>
+
+<p>That is quite a confusing picture there, not enough to understand what’s up. 
+The only thing left is to look at the generated asm. I printed two times 22 pages of asm in font size 6 and armed
+ with an highlighter and a pen eventually figured out why alt slow is slow.</p>
+
+<h1 id="the-expected-asm">The expected asm</h1>
+
+<p>If we look at the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt">asm generated</a> by the orig code we can see the code that check if the char is a ‘,’, ‘\r’ or ‘\n’.</p>
+
+<figure class="highlight"><pre><code class="language-asm" data-lang="asm">0x00007f385d2371b2: cmp $0x22,%ecx
+0x00007f385d2371b5: je L001d  ;*if_icmpeq
+                              ; - orig.CsvCharConsumer::isNotEscapeCharacter@3 (line 21)
+                              ; - orig.CharConsumer::consumeAllBuffer@43 (line 43)
+0x00007f385d2371bb: mov %edi,%r11d
+0x00007f385d2371be: and $0x1,%r11d  ;*iand
+                                    ; - orig.CharConsumer::isCharEscaped@2 (line 183)
+                                    ; - orig.CharConsumer::consumeAllBuffer@51 (line 44)
+0x00007f385d2371c2: test %r11d,%r11d
+0x00007f385d2371c5: jne L002c  ;*ifne
+                               ; - orig.CharConsumer::isCharEscaped@3 (line 183)
+                               ; - orig.CharConsumer::consumeAllBuffer@51 (line 44)
+0x00007f385d2371cb: cmp $0x2c,%ecx
+0x00007f385d2371ce: je L0003  ;*if_icmpne
+                              ; - orig.CsvCharConsumer::isSeparator@3 (line 16)
+                              ; - orig.CharConsumer::consumeAllBuffer@60 (line 45)
+0x00007f385d2371d0: cmp $0xa,%ecx
+0x00007f385d2371d3: je L000c  ;*if_icmpne
+                              ; - orig.CharConsumer::consumeAllBuffer@84 (line 49)
+0x00007f385d2371d9: cmp $0xd,%ecx
+0x00007f385d2371dc: je L000c  ;*if_icmpne
+; - orig.CharConsumer::consumeAllBuffer@125 (line 58)</code></pre></figure>
+
+<p>Then at L0003, L000c, or L000c it create the string and push it to the array.</p>
+
+<figure class="highlight"><pre><code class="language-asm" data-lang="asm">             L0003: mov 0x10(%r12,%r8,8),%r8d  ;*getfield mark
+                                               ; - orig.CharConsumer::newCell@6 (line 157)
+                                               ; - orig.CharConsumer::consumeAllBuffer@71 (line 46)
+                                               ; implicit exception: dispatches to 0x00007f385d2383cd
+0x00007f385d237222: lea 0x10(%r14,%r8,2),%rax  ;*invokestatic arraycopy
+                                               ; - java.util.Arrays::copyOfRange@57 (line 3665)
+                                               ; - java.lang.String::&lt;init&gt;@75 (line 207)
+                                               ; - StringArrayCellConsumer::newCell@19 (line 23)
+                                               ; - orig.CsvCharConsumer::pushCell@46 (line 35)
+                                               ; - orig.CharConsumer::newCell@11 (line 157)
+                                               ; - orig.CharConsumer::consumeAllBuffer@71 (line 46)
+0x00007f385d237227: cmp %r10d,%r8d
+0x00007f385d23722a: jge L0004  ;*if_icmpge
+                               ; - orig.CsvCharConsumer::pushCell@10 (line 30)
+                               ; - orig.CharConsumer::newCell@11 (line 157)
+...</code></pre></figure>
+
+<p>That’s pretty much what you would expect.</p>
+
+<h1 id="the-alt-slow-kinder-surprise">The alt slow kinder surprise</h1>
+
+<p>Now here is the surprise in the slow run - which has a more aggressive inlining -.</p>
+
+<figure class="highlight"><pre><code class="language-asm" data-lang="asm">             L0001: cmp 0x10(%rsp),%ecx
+0x00007f1611212858: jge L001f
+0x00007f161121285e: mov %ecx,%r11d
+0x00007f1611212861: mov 0x10(%rsp),%ecx
+0x00007f1611212865: mov %r11d,%edi
+0x00007f1611212868: mov 0x50(%rsp),%eax
+0x00007f161121286c: mov (%rsp),%r8d
+0x00007f1611212870: mov 0x8(%rsp),%rsi
+0x00007f1611212875: mov 0x18(%rsp),%rbp  ;*aload_2
+                                         ; - alt.CharConsumer2::consumeAllBuffer@34 (line 43)
+             L0002: movzwl 0x10(%rsi,%rdi,2),%r10d  ;*caload
+                                                    ; - alt.CharConsumer2::consumeAllBuffer@37 (line 43)
+0x00007f1611212880: mov %edi,%r11d
+0x00007f1611212883: inc %r11d  ;*iadd
+                               ; - alt.CharConsumer2::startNextCell@3 (line 165)
+                               ; - alt.CharConsumer2::newCell@13 (line 161)
+                               ; - alt.CharConsumer2::consumeAllBuffer@71 (line 47)
+0x00007f1611212886: cmp $0x22,%r10d
+0x00007f161121288a: je L001d  ;*if_icmpeq
+                              ; - alt.CsvCharConsumer2::isNotEscapeCharacter@3 (line 21)
+                              ; - alt.CharConsumer2::consumeAllBuffer@43 (line 44)
+0x00007f1611212890: mov %r9d,%edx
+0x00007f1611212893: and $0x1,%edx  ;*iand
+                                   ; - alt.CharConsumer2::isCharEscaped@2 (line 186)
+                                   ; - alt.CharConsumer2::consumeAllBuffer@51 (line 45)
+0x00007f1611212896: test %edx,%edx
+0x00007f1611212898: jne L002a  ;*ifne
+                               ; - alt.CharConsumer2::isCharEscaped@3 (line 186)
+                               ; - alt.CharConsumer2::consumeAllBuffer@51 (line 45)
+0x00007f161121289e: mov %r11d,0x4(%rsp)
+0x00007f16112128a3: mov %rbp,0x18(%rsp)
+0x00007f16112128a8: mov %eax,0x50(%rsp)
+0x00007f16112128ac: mov %r9d,%eax
+0x00007f16112128af: mov %ecx,0x10(%rsp)
+0x00007f16112128b3: mov 0x14(%rbx),%r9d  ;*getfield cellStart
+                                         ; - alt.CharConsumer2::newCell@3 (line 160)
+                                         ; - alt.CharConsumer2::consumeAllBuffer@71 (line 47)
+0x00007f16112128b7: mov %rbx,0x30(%rsp)
+0x00007f16112128bc: lea 0x10(%rsi,%r9,2),%r11  ;*caload
+                                               ; - alt.CsvCharConsumer2::pushCell@16 (line 30)
+                                               ; - alt.CharConsumer2::newCell@8 (line 160)
+                                               ; - alt.CharConsumer2::endOfRow@4 (line 150)
+; - alt.CharConsumer2::consumeAllBuffer@100 (line 52)</code></pre></figure>
+
+<p>we can see the check on isNotEscapeCharacter, the wrongly named isCharEscaped, but then it fetches
+cellStart and start executing code from pushCell.</p>
+
+<p>the isSeparator test is done at line 175 after some logic from the pushCell code.
+Logic is only useful when the isSepartor, CR, LF test is true.</p>
+
+<figure class="highlight"><pre><code class="language-asm" data-lang="asm">0x00007f1611212922: shr $0x3,%r8  ;*invokestatic arraycopy
+                               ; - java.util.Arrays::copyOfRange@57 (line 3665)
+                               ; - java.lang.String::&lt;init&gt;@75 (line 207)
+                               ; - StringArrayCellConsumer::newCell@19 (line 23)
+                               ; - alt.CsvCharConsumer2::pushCell@46 (line 35)
+                               ; - alt.CharConsumer2::newCell@8 (line 160)
+                               ; - alt.CharConsumer2::consumeAllBuffer@71 (line 47)
+0x00007f1611212926: cmp $0x2c,%r10d
+0x00007f161121292a: je L0003  ;*if_icmpne
+                           ; - alt.CsvCharConsumer2::isSeparator@3 (line 16)
+                           ; - alt.CharConsumer2::consumeAllBuffer@60 (line 46)
+0x00007f161121292c: cmp $0xa,%r10d
+0x00007f1611212930: je L000c  ;*if_icmpne
+                           ; - alt.CharConsumer2::consumeAllBuffer@84 (line 50)
+0x00007f1611212936: cmp $0xd,%r10d
+0x00007f161121293a: je L002b  ;*if_icmpne
+; - alt.CharConsumer2::consumeAllBuffer@125 (line 59)</code></pre></figure>
+
+<p>and you can see it getting back to L0001 before the array copy logic</p>
+
+<figure class="highlight"><pre><code class="language-asm" data-lang="asm">0x00007f1611212bc4: mov $0x4,%r9d
+0x00007f1611212bca: jmpq L0001</code></pre></figure>
+
+<p>that means the asm between line 90 and 168 is executed for every character instead of only 
+when the char match a ‘,’ or ‘\n’. This is the hot region seen in perfasm that takes more than 50% of the cpu cycles.</p>
+
+<h1 id="why">Why?</h1>
+
+<h2 id="why-the-orig-fast-case-">why the orig fast case ?</h2>
+
+<p>I think that because mark is in an another object.
+If you look at the compilation log and compare them to the alt slow case you can see
+the only difference is the bc/dependency declaration.</p>
+
+<figure class="highlight"><pre><code class="language-xml" data-lang="xml">  <span class="nt">&lt;method</span> <span class="na">level=</span><span class="s">"4"</span> <span class="na">bytes=</span><span class="s">"20"</span> <span class="na">name=</span><span class="s">"newCell"</span> <span class="na">flags=</span><span class="s">"2"</span> <span class="na">holder=</span><span class="s">"831"</span> <span class="na">arguments=</span><span class="s">"820 721 832"</span> <span class="na">id=</span><span class="s">"847"</span> <span class="na">compile_id=</span><span class="s">"449"</span> <span class="na">compiler=</span><span class="s">"C2"</span> <span class="na">iicount=</span><span class="s">"155756"</span> <span class="na">return=</span><span class="s">"723"</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;call</span> <span class="na">method=</span><span class="s">"847"</span> <span class="na">inline=</span><span class="s">"1"</span> <span class="na">count=</span><span class="s">"140990"</span> <span class="na">prof_factor=</span><span class="s">"1"</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;inline_success</span> <span class="na">reason=</span><span class="s">"inline (hot)"</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;dependency</span> <span class="na">x=</span><span class="s">"836"</span> <span class="na">ctxk=</span><span class="s">"831"</span> <span class="na">type=</span><span class="s">"abstract_with_unique_concrete_subtype"</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;parse</span> <span class="na">method=</span><span class="s">"847"</span> <span class="na">stamp=</span><span class="s">"1.919"</span> <span class="na">uses=</span><span class="s">"140990"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;bc</span> <span class="na">code=</span><span class="s">"180"</span> <span class="na">bci=</span><span class="s">"3"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;dependency</span> <span class="na">x=</span><span class="s">"835"</span> <span class="na">ctxk=</span><span class="s">"837"</span> <span class="na">type=</span><span class="s">"abstract_with_unique_concrete_subtype"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;bc</span> <span class="na">code=</span><span class="s">"180"</span> <span class="na">bci=</span><span class="s">"6"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;uncommon_trap</span> <span class="na">reason=</span><span class="s">"null_check"</span> <span class="na">bci=</span><span class="s">"6"</span> <span class="na">action=</span><span class="s">"maybe_recompile"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;bc</span> <span class="na">code=</span><span class="s">"182"</span> <span class="na">bci=</span><span class="s">"11"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;method</span> <span class="na">level=</span><span class="s">"4"</span> <span class="na">bytes=</span><span class="s">"52"</span> <span class="na">name=</span><span class="s">"pushCell"</span> <span class="na">flags=</span><span class="s">"20"</span> <span class="na">holder=</span><span class="s">"836"</span> <span class="na">arguments=</span><span class="s">"820 721 721 832"</span> <span class="na">id=</span><span class="s">"857"</span> <span class="na">compile_id=</span><span class="s">"450"</span> <span class="na">compiler=</span><span class="s">"C2"</span> <span class="na">iicount=</span><span class="s">"10919"</span> <span class="na">return=</span><span class="s">"723"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;dependency</span> <span class="na">x=</span><span class="s">"857"</span> <span class="na">ctxk=</span><span class="s">"836"</span> <span class="na">type=</span><span class="s">"unique_concrete_method"</span><span class="nt">/&gt;</span></code></pre></figure>
+
+<h2 id="why-the-alt-fast-case-">why the alt fast case ?</h2>
+
+<p>endOfRow is not inline for the alt fast case. so the newCell is called only once in the isSeparator code path removing the
+“need” for placing some of it before the test.</p>
+
+<h2 id="why-the-alt-slow-case-">why the alt slow case ?</h2>
+
+<p>That is the big question. And it probably would need more work here to figure it out but here are a few points</p>
+<ul>
+  <li>it happens only on TieredCompilation for that code</li>
+  <li>but a more simplified version I’ve quickly played with always run in slow mode even on C2 only.</li>
+  <li>it does not happen on java9 build 129 that I tested with. So it’s either a known issue that is being fixed or that has been fixed by a side effect.</li>
+  <li>some of the heuristic might wrongly think there is a benefit to do that.</li>
+</ul>
+
+<h1 id="so-what">So what?</h1>
+
+<p>It’s hard to have lesson you can learn from that. the hack to force the fast past is not much of a problem here but it’s 
+weird to have to do that. If you have unstable performance you might have that kind of issue and then spent some time investigating
+the asm. But if you don’t that does not mean the problem is not present…</p>
+
+<p>What pushed me to fix it was the conviction that the code should be faster that it was - comparing to jackson csv or univocity. 
+Having a good benchmark line to measure against or having decent expectation cqan help identifying those issues.</p>
+
+
+    </div>
+
+
+    <div id="disqus_thread"></div>
+<script>
+
+/**
+ *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+ *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables */
+/*
+var disqus_config = function () {
+    this.page.url = 'http://arnaudroger.github.io/blog/2016/10/30/java-performance-puzzle.html';  // Replace PAGE_URL with your page's canonical URL variable
+    this.page.identifier = '/2016/10/30/java-performance-puzzle'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+    var d = document, s = d.createElement('script');
+    s.src = '//arogerblog.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+    <div class="wrapper">
+
+        <h2 class="footer-heading">Eat Sleep Code Repeat.</h2>
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Eat Sleep Code Repeat.</li>
+                    <li><a href="mailto:arnaud.roger@gmail.com">arnaud.roger@gmail.com</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                <ul class="social-media-list">
+                    
+                    <li>
+                        <a href="https://github.com/arnaudroger"><span class="icon icon--github"><svg viewBox="0 0 16 16"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">arnaudroger</span></a>
+
+                    </li>
+                    
+
+                    
+                    <li>
+                        <a href="https://twitter.com/arnaudroger"><span class="icon icon--twitter"><svg viewBox="0 0 16 16"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username">arnaudroger</span></a>
+
+                    </li>
+                    
+                </ul>
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p>Rambling of an old java developer.</p>
+            </div>
+        </div>
+
+    </div>
+</footer>
+
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-83272639-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+
+  </body>
+
+</html>

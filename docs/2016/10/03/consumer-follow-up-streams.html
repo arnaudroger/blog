@@ -6,11 +6,11 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Eat Sleep Code Repeat.</title>
-  <meta name="description" content="Rambling of an old java developer.">
+  <title>Consumer Follow Up Streams</title>
+  <meta name="description" content="In my previous post I talked about replacing return List with a Consumer. There was a few comments on why not returning Stream. But those solution can cause ...">
 
   <link rel="stylesheet" href="/blog/css/main.css">
-  <link rel="canonical" href="http://arnaudroger.github.io/blog/">
+  <link rel="canonical" href="http://arnaudroger.github.io/blog/2016/10/03/consumer-follow-up-streams.html">
   <link rel="alternate" type="application/rss+xml" title="Eat Sleep Code Repeat." href="http://arnaudroger.github.io/blog/feed.xml">
 </head>
 
@@ -50,51 +50,51 @@
 
     <main class="page-content" aria-label="Content">
       <div class="wrapper">
-        <div class="home">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
-  <h1 class="page-heading">Posts</h1>
+    <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">Consumer Follow Up Streams</h1>
+        <p class="post-meta"><time datetime="2016-10-03T00:00:00+01:00" itemprop="datePublished">Oct 3, 2016</time></p>
+    </header>
 
-  <ul class="post-list">
-    
-    
-    
-    
-    
-    
-      <li>
-        <span class="post-meta">Sep 19, 2016</span>
+    <div class="post-content" itemprop="articleBody">
+        <p>In my previous <a href="/blog/2016/09/19/consumer-in-place-of-returning-list.html">post</a> I talked about replacing
+return List<T> with a Consumer<T>. There was a few comments on why not returning Stream. But those 
+solution can cause resource leak if the Stream is not close.</T></T></p>
 
-        <h2>
-          <a class="post-link" href="/blog/2016/09/19/consumer-in-place-of-returning-list.html">Consumer In Place Of Returning List</a>
-        </h2>
-      </li>
-    
-    
-    
-      <li>
-        <span class="post-meta">Aug 9, 2016</span>
+<p><a href="https://www.reddit.com/user/s888marks">s888marks</a> pointed us to a solution that would solve the side effect and resource scoping issue 
+used in the  new <a href="http://download.java.net/java/jdk9/docs/api/java/lang/StackWalker.html#walk-java.util.function.Function-">StackWalker API</a>.</p>
 
-        <h2>
-          <a class="post-link" href="/blog/2016/08/09/jigsaw-maven-integration.html">Jigsaw Maven Integration</a>
-        </h2>
-      </li>
-    
-    
-    
-      <li>
-        <span class="post-meta">Jul 18, 2016</span>
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">R</span><span class="o">&gt;</span> <span class="n">R</span> <span class="nf">getItems</span><span class="o">(</span><span class="n">Function</span><span class="o">&lt;?</span> <span class="kd">super</span> <span class="n">Stream</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;,</span> <span class="o">?</span> <span class="kd">extends</span> <span class="n">R</span><span class="o">&gt;</span> <span class="n">f</span><span class="o">)</span></code></pre></figure>
 
-        <h2>
-          <a class="post-link" href="/blog/2016/07/18/testing-with-custom-classpath.html">Testing With Custom Classpath</a>
-        </h2>
-      </li>
-    
-    
-  </ul>
+<p>In that follow up post I’ll go through the code necessary to implement a classic list return, the function Stream and the Consumer.</p>
 
-  <p class="rss-subscribe">subscribe <a href="/blog/feed.xml">via RSS</a></p>
 
-</div>
+    </div>
+
+
+    <div id="disqus_thread"></div>
+<script>
+
+/**
+ *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+ *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables */
+/*
+var disqus_config = function () {
+    this.page.url = 'http://arnaudroger.github.io/blog/2016/10/03/consumer-follow-up-streams.html';  // Replace PAGE_URL with your page's canonical URL variable
+    this.page.identifier = '/2016/10/03/consumer-follow-up-streams'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+    var d = document, s = d.createElement('script');
+    s.src = '//arogerblog.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+</article>
 
       </div>
     </main>
