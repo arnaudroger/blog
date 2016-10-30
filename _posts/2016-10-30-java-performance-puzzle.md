@@ -1,9 +1,10 @@
 ---
 layout: post
-date: 2016-10-28
-draft: false
+date: 2016-10-30
+draft: true
 ---
 
+ <img src="/blog/images/20161030-asm-print-scale.JPG" style="float:right; margin:5px;"/>
 The csv parser that I wrote in SimpleFlatMapper uses a simple loop + state to parse a csv.
 The code is a lot simpler than other implementation I've seen and at the time according to
 my test was faster. I was testing on java 7, 8 still being very new.
@@ -84,15 +85,21 @@ vs for a fast run
 
 ## jitwatch
 
+
 Looking at the Chain graph in jitwatch we can seem some difference in inlining between 
 slow and fast.
 
 the endOfRow method called in consumeAllBuffer is not inline in the fast run. But
 in the orig ref run that method is inlined. so also it does make perf better for the alt version it does not cause an issue on the orig version.
 
+ <img src="/blog/images/20160130-jitwatch-chain-scale.png" style="margin:5px;"/>
+
+
 That is quite a confusing picture there, not enough to understand what's up. 
 The only thing left is to look at the generated asm. I printed two times 22 pages of asm in font size 6 and armed
  with an highlighter and a pen eventually figured out why alt slow is slow.
+ 
+
 
 # The expected asm
 
@@ -199,7 +206,8 @@ Now here is the surprise in the slow run - which has a more aggressive inlining 
 we can see the check on isNotEscapeCharacter, the wrongly named isCharEscaped, but then it fetches
 cellStart and start executing code from pushCell.
 
-the isSeparator is done at line 175 after the some array copy logic.
+the isSeparator test is done at line 175 after some logic from the pushCell code.
+Logic is only useful when the isSepartor, CR, LF test is true.
  
 {% highlight asm %}
 0x00007f1611212922: shr $0x3,%r8  ;*invokestatic arraycopy
@@ -229,8 +237,7 @@ and you can see it getting back to L0001 before the array copy logic
 {% endhighlight %}
 
 that means the asm between line 90 and 168 is executed for every character instead of only 
-when the char match a ',' or '\n'. That part of the code is the code marked as hot in perfasm,
-that is now no surprise.
+when the char match a ',' or '\n'. This is the hot region seen in perfasm that takes more than 50% of the cpu cycles.
  
 # Why?
 
@@ -238,10 +245,21 @@ that is now no surprise.
 
 I think that because mark is in an another object.
 If you look at the compilation log and compare them to the alt slow case you can see
-the only difference is the dependency declaration.
+the only difference is the bc/dependency declaration.
 
 {% highlight xml %}
-
+  <method level="4" bytes="20" name="newCell" flags="2" holder="831" arguments="820 721 832" id="847" compile_id="449" compiler="C2" iicount="155756" return="723"/>
+  <call method="847" inline="1" count="140990" prof_factor="1"/>
+  <inline_success reason="inline (hot)"/>
+  <dependency x="836" ctxk="831" type="abstract_with_unique_concrete_subtype"/>
+  <parse method="847" stamp="1.919" uses="140990">
+    <bc code="180" bci="3"/>
+    <dependency x="835" ctxk="837" type="abstract_with_unique_concrete_subtype"/>
+    <bc code="180" bci="6"/>
+    <uncommon_trap reason="null_check" bci="6" action="maybe_recompile"/>
+    <bc code="182" bci="11"/>
+    <method level="4" bytes="52" name="pushCell" flags="20" holder="836" arguments="820 721 721 832" id="857" compile_id="450" compiler="C2" iicount="10919" return="723"/>
+    <dependency x="857" ctxk="836" type="unique_concrete_method"/>
 {% endhighlight %}
 
 ## why the alt fast case ?
@@ -252,36 +270,21 @@ endOfRow is not inline for the alt fast case. so the newCell is called only once
 ## why the alt slow case ?
 
 That is the big question. And it probably would need more work here to figure it out but here are a few points
-1 - it happens only on TieredCompilation for that code
-2 - but a more simplified version I've quickly played with always run in slow mode even on C2 only.
-3 - it does not happen on java9 build 129 that I tested with. So it's either a known issue that is being fixed or that has been fixed by a side effect.
-4 - some of the heuristic might wrongly think there is a benefit to do that.
+* it happens only on TieredCompilation for that code
+* but a more simplified version I've quickly played with always run in slow mode even on C2 only.
+* it does not happen on java9 build 129 that I tested with. So it's either a known issue that is being fixed or that has been fixed by a side effect.
+* some of the heuristic might wrongly think there is a benefit to do that.
 
 # So what?
 
 It's hard to have lesson you can learn from that. the hack to force the fast past is not much of a problem here but it's 
 weird to have to do that. If you have unstable performance you might have that kind of issue and then spent some time investigating
 the asm. But if you don't that does not mean the problem is not present...
+
 What pushed me to fix it was the conviction that the code should be faster that it was - comparing to jackson csv or univocity. 
 Having a good benchmark line to measure against or having decent expectation cqan help identifying those issues.
 
-Also you can see that java thanks to the jit, aggressive inlining, and escape analysis can generate very optimise code, 
-we have 5 level deep inlining in that method 
-
-{% highlight asm %}
-;*invokestatic arraycopy
-                                  ; - java.util.Arrays::copyOfRange@57 (line 3665)
-                                  ; - java.lang.String::<init>@75 (line 207)
-                                  ; - StringArrayCellConsumer::newCell@19 (line 23)
-                                  ; - alt.CsvCharConsumer2::pushCell@46 (line 35)
-                                  ; - alt.CharConsumer2::newCell@8 (line 160)
-                                  ; - alt.CharConsumer2::consumeAllBuffer@71 (line 47)
-{% endhighlight %}
 
 
-# Can you help?
- 
- Do you have any knowledge of the heuristic link to that issue? any bug open against the vm?
- You can see that it's total non sense? Please leave a comment :)
  
 
