@@ -32,7 +32,7 @@ that gives consistantly [fast result](https://raw.githubusercontent.com/arnaudro
 * [alt](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/alt)
 that can give [result similar](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt) to [orig](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig)  or [slow results](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt).
 
-![avgt ms pie chart](/blog/images/20161030-perf-bar.png "orig : 70, alt fast : 705, alt slow : 1101")
+![avgt ms pie chart](/blog/images/20161030-perf-bar.png "orig : 701, alt fast : 705, alt slow : 1101")
 
 The difference between slow an fast/orig being slightly more than 1.55x - as in fast time * 1.55 = slow time -.
 That is quite an impact. Specially when you consider the difference between alt and orig.
