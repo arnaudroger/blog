@@ -32,8 +32,7 @@ that gives consistantly [fast result](https://raw.githubusercontent.com/arnaudro
 * [alt](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/alt)
 that can give [result similar](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt) to [orig](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig)  or [slow results](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt).
 
-![orig 701 alt fast 705 alt slow 1101](/blog/images/20161030-perf-bar.png "Perf numbers")
-
+![avgt ms pie chart](/blog/images/20161030-perf-bar.png "orig : 70, alt fast : 705, alt slow : 1101")
 
 The difference between slow an fast/orig being slightly more than 1.55x - as in fast time * 1.55 = slow time -.
 That is quite an impact. Specially when you consider the difference between alt and orig.
@@ -63,6 +62,8 @@ We moved the mark field from the CharBuffer to the CharConsumer. That should hav
 ## FlighRecorder sampling
 
 It indicates that a slow run spend a lot more time in pushCell/newCell/String init/copy of range code.
+
+![Thread code tree](/blog/images/20161030-altslow-codetree.png "Flight Recorder code tree")
 
 ## perfasm
 
@@ -100,8 +101,6 @@ That is quite a confusing picture there, not enough to understand what's up.
 The only thing left is to look at the generated asm. I printed two times 22 pages of asm in font size 6 and armed
  with an highlighter and a pen eventually figured out why alt slow is slow.
  
-
-
 # The expected asm
 
 If we look at the [asm generated](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt) by the orig code we can see the code that check if the char is a ',', '\r' or '\n'.
