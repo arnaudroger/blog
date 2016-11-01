@@ -322,6 +322,33 @@ the asm. But if you don’t that does not mean the problem is not present…</p>
 <p>What pushed me to fix it was the conviction that the code should be faster that it was - comparing to jackson csv or univocity. 
 Having a good benchmark line to measure against or having decent expectation cqan help identifying those issues.</p>
 
+<h1 id="how-to-reproduce">How to reproduce</h1>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c"># clone and build</span>
+git clone https://github.com/arnaudroger/sfm-csv-variability.git
+<span class="nb">cd </span>sfm-csv-variability
+mvn clean install
+
+<span class="c"># reproduce volatility some should be low some high</span>
+java -jar target/benchmark.jar Csv2Ben -f 10 -i 5 -wi 5
+
+<span class="c"># perf asm only on linux and need hsdis file https://kenai.com/projects/base-hsdis/downloads</span>
+<span class="c"># orig run</span>
+java -jar target/benchmark.jar Csv1Ben -f 1 -prof perfasm
+<span class="c"># run until you have satisfying slow and fast run</span>
+java -jar target/benchmark.jar Csv2Ben -f 1 -prof perfasm 
+
+<span class="c"># run with flighrecorder</span>
+java -jar target/benchmarks.jar Csv1Ben -f 1 -wi 10 -i 1000 -jvmArgs <span class="s2">"-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints"</span> 
+java -jar target/benchmarks.jar Csv2Ben -f 1 -wi 10 -i 1000 -jvmArgs <span class="s2">"-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints"</span> 
+<span class="c"># connect jmc to ForkedMain process</span>
+
+<span class="c"># jitwatch run</span>
+java -jar target/benchmarks.jar Csv1Ben -f 1 -jvmArgs <span class="s2">"-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:+PrintAssembly -XX:LogFile=jitwatch-orig.log"</span> 
+java -jar target/benchmarks.jar Csv2Ben -f 1 -jvmArgs <span class="s2">"-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:+PrintAssembly -XX:LogFile=jitwatch-alt-{slow/fast}.log"" 
+
+ </span></code></pre></figure>
+
 
     </div>
 
