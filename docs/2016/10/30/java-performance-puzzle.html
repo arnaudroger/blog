@@ -153,8 +153,9 @@ The only thing left is to look at the generated asm. I printed two times 22 page
 
 <p>If we look at the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt">asm generated</a> by the orig code we can see the code that check if the char is a ‘,’, ‘\r’ or ‘\n’.</p>
 
-<figure class="highlight"><pre><code class="language-asm" data-lang="asm">0x00007f385d2371b2: cmp $0x22,%ecx
-0x00007f385d2371b5: je L001d  ;*if_icmpeq
+<p><a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L78">Line starting at 78</a></p>
+
+<figure class="highlight"><pre><code class="language-asm" data-lang="asm">0x00007f385d2371b5: je L001d  ;*if_icmpeq
                               ; - orig.CsvCharConsumer::isNotEscapeCharacter@3 (line 21)
                               ; - orig.CharConsumer::consumeAllBuffer@43 (line 43)
 0x00007f385d2371bb: mov %edi,%r11d
@@ -173,10 +174,10 @@ The only thing left is to look at the generated asm. I printed two times 22 page
 0x00007f385d2371d3: je L000c  ;*if_icmpne
                               ; - orig.CharConsumer::consumeAllBuffer@84 (line 49)
 0x00007f385d2371d9: cmp $0xd,%ecx
-0x00007f385d2371dc: je L000c  ;*if_icmpne
+0x00007f385d2371dc: je L002d  ;*if_icmpne
 ; - orig.CharConsumer::consumeAllBuffer@125 (line 58)</code></pre></figure>
 
-<p>Then at L0003, L000c, or L000c it create the string and push it to the array.</p>
+<p>Then at <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L121">L0003</a>, <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L403">L000c</a>, or <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L1323">L002d</a> it create the string and push it to the array.</p>
 
 <figure class="highlight"><pre><code class="language-asm" data-lang="asm">             L0003: mov 0x10(%r12,%r8,8),%r8d  ;*getfield mark
                                                ; - orig.CharConsumer::newCell@6 (line 157)
@@ -200,6 +201,8 @@ The only thing left is to look at the generated asm. I printed two times 22 page
 <h1 id="the-alt-slow-kinder-surprise">The alt slow kinder surprise</h1>
 
 <p>Now here is the surprise in <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt">the asm for the slow run</a> - which has a more aggressive inlining -.</p>
+
+<p><a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L56">At line 56</a></p>
 
 <figure class="highlight"><pre><code class="language-asm" data-lang="asm">             L0001: cmp 0x10(%rsp),%ecx
 0x00007f1611212858: jge L001f
@@ -245,10 +248,10 @@ The only thing left is to look at the generated asm. I printed two times 22 page
                                                ; - alt.CharConsumer2::endOfRow@4 (line 150)
 ; - alt.CharConsumer2::consumeAllBuffer@100 (line 52)</code></pre></figure>
 
-<p>we can see the check on isNotEscapeCharacter, the wrongly named isCharEscaped, but then it fetches
-cellStart and start executing code from pushCell.</p>
+<p>we can see the check on <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L74">isNotEscapeCharacter</a>, the wrongly named isCharEscaped, but then it fetches
+cellStart and start executing code from <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L94">pushCell</a>.</p>
 
-<p>the isSeparator test is done at line 175 after some logic from the pushCell code.
+<p>the isSeparator test is done at <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L175">line 175</a> after some logic from the pushCell code.
 Logic is only useful when the isSepartor, CR, LF test is true.</p>
 
 <figure class="highlight"><pre><code class="language-asm" data-lang="asm">0x00007f1611212922: shr $0x3,%r8  ;*invokestatic arraycopy
@@ -269,7 +272,8 @@ Logic is only useful when the isSepartor, CR, LF test is true.</p>
 0x00007f161121293a: je L002b  ;*if_icmpne
 ; - alt.CharConsumer2::consumeAllBuffer@125 (line 59)</code></pre></figure>
 
-<p>and you can see it getting back to L0001 before the array copy logic</p>
+<p>and you can see that after jumping to <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L208">L0003</a>
+it <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L418">jumps back to L0001</a> before the array copy logic</p>
 
 <figure class="highlight"><pre><code class="language-asm" data-lang="asm">0x00007f1611212bc4: mov $0x4,%r9d
 0x00007f1611212bca: jmpq L0001</code></pre></figure>
@@ -283,7 +287,7 @@ when the char match a ‘,’ or ‘\n’. This is the hot region seen in perfas
 
 <p>I think that because mark is in an another object.
 If you look at the compilation log and compare them to the alt slow case you can see
-the only difference is the bc/dependency declaration.</p>
+the only difference is the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/journal-v1-ref.xml#L86">bc/dependency declaration</a> not present in <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/journal-v2-slow.xml#L86">the slow run</a>.</p>
 
 <figure class="highlight"><pre><code class="language-xml" data-lang="xml">  <span class="nt">&lt;method</span> <span class="na">level=</span><span class="s">"4"</span> <span class="na">bytes=</span><span class="s">"20"</span> <span class="na">name=</span><span class="s">"newCell"</span> <span class="na">flags=</span><span class="s">"2"</span> <span class="na">holder=</span><span class="s">"831"</span> <span class="na">arguments=</span><span class="s">"820 721 832"</span> <span class="na">id=</span><span class="s">"847"</span> <span class="na">compile_id=</span><span class="s">"449"</span> <span class="na">compiler=</span><span class="s">"C2"</span> <span class="na">iicount=</span><span class="s">"155756"</span> <span class="na">return=</span><span class="s">"723"</span><span class="nt">/&gt;</span>
   <span class="nt">&lt;call</span> <span class="na">method=</span><span class="s">"847"</span> <span class="na">inline=</span><span class="s">"1"</span> <span class="na">count=</span><span class="s">"140990"</span> <span class="na">prof_factor=</span><span class="s">"1"</span><span class="nt">/&gt;</span>

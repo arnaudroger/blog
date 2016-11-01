@@ -155,7 +155,7 @@ That's pretty much what you would expect.
 
 # The alt slow kinder surprise
 
-Now here is the surprise in the slow run - which has a more aggressive inlining -.
+Now here is the surprise in [the asm for the slow run](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt) - which has a more aggressive inlining -.
 
 {% highlight asm %}
              L0001: cmp 0x10(%rsp),%ecx
