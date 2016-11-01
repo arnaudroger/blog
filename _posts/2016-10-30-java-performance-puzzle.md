@@ -5,33 +5,35 @@ draft: true
 ---
 
  <img src="/blog/images/20161030-asm-print-scale.JPG" style="float:right; margin:5px;"/>
-The csv parser that I wrote in SimpleFlatMapper uses a simple loop + state to parse a csv.
+The [http://simpleflatmapper.org/0101-getting-started-csv.html](csv parser) that I wrote in [SimpleFlatMapper](http://simpleflatmapper.org/) uses a simple loop + state to parse a csv.
 The code is a lot simpler than other implementation I've seen and at the time according to
 my test was faster. I was testing on java 7, 8 still being very new.
 
-When I ran it on java8 the result were quite confusing. Sometimes fast, sometimes slow.
-It did not take look to point to tiered compilation. Java 8 enabled it by default and by disabling
-it I obtained the same result as with java7.
+When I ran it on java8 the results were quite confusing. Sometimes fast, sometimes slow.
+It looked like deactivating TieredCompilation removed the regression
+I played around and after enough shuffling the problem disappeared.
+I did not know why and did not have time/skills to really dig into it, it was good enough at the time. Problem solved.
 
-But knowing is not good enough, so I played around and after enough shuffling the problem disappeared.
-I did not know why and did not have time/skills to really dig into it, that was good enough and the end of
-it.
-
-Last week I started to address the code duplication in the parser. And faced that problem again.
-Eventually reduce the problem to a few line changes. And this time I decided I would
-figure it out. Following are the findings, more questions and some good news.
+Last week I started to address some code duplication in the parser. And faced the same problem again.
+Eventually reduced the issue to a few line changes. Was reliable way to reproduce the different scenario
+it became possible to investigate.
 
 # The puzzle
 
 I created a [githup repo](https://github.com/arnaudroger/sfm-csv-variability) to isolate the behavior and gather some data.
 It uses a slightly simplified version of [sfm-csv](https://github.com/arnaudroger/SimpleFlatMapper/tree/master/sfm-csv)
 and the benchmarking code [mapping-benchmark](https://github.com/arnaudroger/mapping-benchmark/tree/master/sfm-csv).
-The benchmark will parse locally [worldcitiespop.txt](http://www.maxmind.com/download/worldcities/worldcitiespop.txt.gz), 
+The benchmark will parse [a csv file](http://www.maxmind.com/download/worldcities/worldcitiespop.txt.gz), 
 stores the cell in a String[] and pass that to the blackhole.
 
-There are two version [orig](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig) 
-that gives consistantly [fast result](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v1-ref.txt) and [alt](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/alt)
-that can give [result similar](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt) to orig or [slow results](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt).
+There are two version of the parser 
+* [orig](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig) consistently fast.
+that gives consistantly [fast result](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v1-ref.txt) 
+* [alt](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/alt)
+that can give [result similar](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt) to [orig](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig)  or [slow results](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt).
+
+![orig 701 alt fast 705 alt slow 1101](/blog/images/20161030-perf-bar.png "Perf numbers")
+
 
 The difference between slow an fast/orig being slightly more than 1.55x - as in fast time * 1.55 = slow time -.
 That is quite an impact. Specially when you consider the difference between alt and orig.
@@ -92,8 +94,7 @@ slow and fast.
 the endOfRow method called in consumeAllBuffer is not inline in the fast run. But
 in the orig ref run that method is inlined. so also it does make perf better for the alt version it does not cause an issue on the orig version.
 
- <img src="/blog/images/20160130-jitwatch-chain-scale.png" style="margin:5px;"/>
-
+![chain graph](/blog/images/20161030-jitwatch-chain-scale.png "Jit Chain graph")
 
 That is quite a confusing picture there, not enough to understand what's up. 
 The only thing left is to look at the generated asm. I printed two times 22 pages of asm in font size 6 and armed
