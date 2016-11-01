@@ -284,7 +284,32 @@ the asm. But if you don't that does not mean the problem is not present...
 What pushed me to fix it was the conviction that the code should be faster that it was - comparing to jackson csv or univocity. 
 Having a good benchmark line to measure against or having decent expectation cqan help identifying those issues.
 
+# How to reproduce
 
+{% highlight bash %}
+
+# clone and build
+git clone https://github.com/arnaudroger/sfm-csv-variability.git
+cd sfm-csv-variability
+mvn clean install
+
+# reproduce volatility some should be low some high
+java -jar target/benchmark.jar Csv2Ben -f 10 -i 5 -wi 5
+
+# perf asm only on linux and need hsdis file https://kenai.com/projects/base-hsdis/downloads
+# orig run
+java -jar target/benchmark.jar Csv1Ben -f 1 -prof perfasm
+# run until you have satisfying slow and fast run
+java -jar target/benchmark.jar Csv2Ben -f 1 -prof perfasm 
+
+# run with flighrecorder
+java -jar target/benchmarks.jar Csv1Ben -f 1 -wi 10 -i 1000 -jvmArgs "-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints" 
+java -jar target/benchmarks.jar Csv2Ben -f 1 -wi 10 -i 1000 -jvmArgs "-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints" 
+# connect jmc to ForkedMain process
+
+# jitwatch run
+java -jar target/benchmarks.jar Csv1Ben -f 1 -jvmArgs "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:+PrintAssembly -XX:LogFile=jitwatch-orig.log" 
+java -jar target/benchmarks.jar Csv2Ben -f 1 -jvmArgs "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:+PrintAssembly -XX:LogFile=jitwatch-alt-{slow/fast}.log"" 
 
  
-
+{% endhighlight %}
