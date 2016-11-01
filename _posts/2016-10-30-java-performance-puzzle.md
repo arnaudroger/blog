@@ -1,7 +1,7 @@
 ---
 layout: post
 date: 2016-10-30
-draft: true
+draft: false
 ---
 
  <img src="/blog/images/20161030-asm-print-scale.JPG" style="float:right; margin:5px;"/>
