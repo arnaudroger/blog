@@ -105,8 +105,8 @@ The only thing left is to look at the generated asm. I printed two times 22 page
 
 If we look at the [asm generated](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt) by the orig code we can see the code that check if the char is a ',', '\r' or '\n'.
 
+[Line starting at 78](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L78)
 {% highlight asm %}
-0x00007f385d2371b2: cmp $0x22,%ecx
 0x00007f385d2371b5: je L001d  ;*if_icmpeq
                               ; - orig.CsvCharConsumer::isNotEscapeCharacter@3 (line 21)
                               ; - orig.CharConsumer::consumeAllBuffer@43 (line 43)
@@ -126,11 +126,11 @@ If we look at the [asm generated](https://github.com/arnaudroger/sfm-csv-variabi
 0x00007f385d2371d3: je L000c  ;*if_icmpne
                               ; - orig.CharConsumer::consumeAllBuffer@84 (line 49)
 0x00007f385d2371d9: cmp $0xd,%ecx
-0x00007f385d2371dc: je L000c  ;*if_icmpne
+0x00007f385d2371dc: je L002d  ;*if_icmpne
 ; - orig.CharConsumer::consumeAllBuffer@125 (line 58)
 {% endhighlight %}
 
-Then at L0003, L000c, or L000c it create the string and push it to the array.
+Then at [L0003](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L121), [L000c](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L403), or [L002d](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L1323) it create the string and push it to the array.
 
 {% highlight asm %}
              L0003: mov 0x10(%r12,%r8,8),%r8d  ;*getfield mark
@@ -157,6 +157,7 @@ That's pretty much what you would expect.
 
 Now here is the surprise in [the asm for the slow run](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt) - which has a more aggressive inlining -.
 
+[At line 56](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L56)
 {% highlight asm %}
              L0001: cmp 0x10(%rsp),%ecx
 0x00007f1611212858: jge L001f
@@ -203,10 +204,10 @@ Now here is the surprise in [the asm for the slow run](https://github.com/arnaud
 ; - alt.CharConsumer2::consumeAllBuffer@100 (line 52)
 {% endhighlight %}
 
-we can see the check on isNotEscapeCharacter, the wrongly named isCharEscaped, but then it fetches
-cellStart and start executing code from pushCell.
+we can see the check on [isNotEscapeCharacter](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L74), the wrongly named isCharEscaped, but then it fetches
+cellStart and start executing code from [pushCell](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L94).
 
-the isSeparator test is done at line 175 after some logic from the pushCell code.
+the isSeparator test is done at [line 175](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L175) after some logic from the pushCell code.
 Logic is only useful when the isSepartor, CR, LF test is true.
  
 {% highlight asm %}
@@ -229,7 +230,8 @@ Logic is only useful when the isSepartor, CR, LF test is true.
 ; - alt.CharConsumer2::consumeAllBuffer@125 (line 59)
 {% endhighlight %}
 
-and you can see it getting back to L0001 before the array copy logic
+and you can see that after jumping to [L0003](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L208)
+it [jumps back to L0001](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v2-slow.txt#L418) before the array copy logic
 
 {% highlight asm %}
 0x00007f1611212bc4: mov $0x4,%r9d
@@ -245,7 +247,7 @@ when the char match a ',' or '\n'. This is the hot region seen in perfasm that t
 
 I think that because mark is in an another object.
 If you look at the compilation log and compare them to the alt slow case you can see
-the only difference is the bc/dependency declaration.
+the only difference is the [bc/dependency declaration](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/journal-v1-ref.xml#L86) not present in [the slow run](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/journal-v2-slow.xml#L86).
 
 {% highlight xml %}
   <method level="4" bytes="20" name="newCell" flags="2" holder="831" arguments="820 721 832" id="847" compile_id="449" compiler="C2" iicount="155756" return="723"/>
