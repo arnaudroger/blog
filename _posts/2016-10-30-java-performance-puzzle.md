@@ -5,7 +5,7 @@ draft: false
 ---
 
  <img src="/blog/images/20161030-asm-print-scale.JPG" style="float:right; margin:5px;"/>
-The [http://simpleflatmapper.org/0101-getting-started-csv.html](csv parser) that I wrote in [SimpleFlatMapper](http://simpleflatmapper.org/) uses a simple loop + state to parse a csv.
+The [csv parser](http://simpleflatmapper.org/0101-getting-started-csv.html) that I wrote in [SimpleFlatMapper](http://simpleflatmapper.org/) uses a simple loop + state to parse a csv.
 The code is a lot simpler than other implementation I've seen and at the time according to
 my test was faster. I was testing on java 7, 8 still being very new.
 
