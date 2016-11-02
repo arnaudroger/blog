@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 02 Nov 2016 22:20:03 +0000</pubDate>
-    <lastBuildDate>Wed, 02 Nov 2016 22:20:03 +0000</lastBuildDate>
+    <pubDate>Wed, 02 Nov 2016 23:18:27 +0000</pubDate>
+    <lastBuildDate>Wed, 02 Nov 2016 23:18:27 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
     
     
@@ -524,6 +524,8 @@ java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s
 seems that the test might need a module-info.java.&lt;/p&gt;
 
 &lt;p&gt;Will update when I have more info.&lt;/p&gt;
+
+&lt;p&gt;Mockito does not work in module because of objenesis that refer method in sun.reflect.ReflectionFactory that does not exist anymore.&lt;/p&gt;
 
 &lt;h1 id=&quot;maven-building-java-9-ea-with-jigsaw&quot;&gt;Maven building java 9-ea with jigsaw&lt;/h1&gt;
 
