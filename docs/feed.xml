@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 02 Nov 2016 10:52:36 +0000</pubDate>
-    <lastBuildDate>Wed, 02 Nov 2016 10:52:36 +0000</lastBuildDate>
+    <pubDate>Wed, 02 Nov 2016 15:19:12 +0000</pubDate>
+    <lastBuildDate>Wed, 02 Nov 2016 15:19:12 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
     
     
@@ -288,13 +288,13 @@ git clone https://github.com/arnaudroger/sfm-csv-variability.git
 mvn clean install
 
 &lt;span class=&quot;c&quot;&gt;# reproduce volatility some should be low some high&lt;/span&gt;
-java -jar target/benchmark.jar Csv2Ben -f 10 -i 5 -wi 5
+java -jar target/benchmarks.jar Csv2Ben -f 10 -i 5 -wi 5
 
 &lt;span class=&quot;c&quot;&gt;# perf asm only on linux and need hsdis file https://kenai.com/projects/base-hsdis/downloads&lt;/span&gt;
 &lt;span class=&quot;c&quot;&gt;# orig run&lt;/span&gt;
-java -jar target/benchmark.jar Csv1Ben -f 1 -prof perfasm
+java -jar target/benchmarks.jar Csv1Ben -f 1 -prof perfasm
 &lt;span class=&quot;c&quot;&gt;# run until you have satisfying slow and fast run&lt;/span&gt;
-java -jar target/benchmark.jar Csv2Ben -f 1 -prof perfasm 
+java -jar target/benchmarks.jar Csv2Ben -f 1 -prof perfasm 
 
 &lt;span class=&quot;c&quot;&gt;# run with flighrecorder&lt;/span&gt;
 java -jar target/benchmarks.jar Csv1Ben -f 1 -wi 10 -i 1000 -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints&quot;&lt;/span&gt; 
