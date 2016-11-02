@@ -1,6 +1,19 @@
 ---
 layout: post
 ---
+
+# Update 2nd of November 2016
+
+the Maven plugin 3.6.0 has been officially release with jigsaw support.
+
+Gave it a quick try and I have some issues running/compiling the tests.
+seems that the test might need a module-info.java.
+
+Will update when I have more info.
+
+
+Mockito does not work in module because of objenesis that refer method in sun.reflect.ReflectionFactory that does not exist anymore.
+
 # Maven building java 9-ea with jigsaw
 
 If you don't have a module-info.java then you don't need to change anything.

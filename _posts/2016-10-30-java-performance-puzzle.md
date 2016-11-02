@@ -296,13 +296,13 @@ cd sfm-csv-variability
 mvn clean install
 
 # reproduce volatility some should be low some high
-java -jar target/benchmark.jar Csv2Ben -f 10 -i 5 -wi 5
+java -jar target/benchmarks.jar Csv2Ben -f 10 -i 5 -wi 5
 
 # perf asm only on linux and need hsdis file https://kenai.com/projects/base-hsdis/downloads
 # orig run
-java -jar target/benchmark.jar Csv1Ben -f 1 -prof perfasm
+java -jar target/benchmarks.jar Csv1Ben -f 1 -prof perfasm
 # run until you have satisfying slow and fast run
-java -jar target/benchmark.jar Csv2Ben -f 1 -prof perfasm 
+java -jar target/benchmarks.jar Csv2Ben -f 1 -prof perfasm 
 
 # run with flighrecorder
 java -jar target/benchmarks.jar Csv1Ben -f 1 -wi 10 -i 1000 -jvmArgs "-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints" 
