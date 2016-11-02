@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 02 Nov 2016 10:50:22 +0000</pubDate>
-    <lastBuildDate>Wed, 02 Nov 2016 10:50:22 +0000</lastBuildDate>
+    <pubDate>Wed, 02 Nov 2016 10:52:36 +0000</pubDate>
+    <lastBuildDate>Wed, 02 Nov 2016 10:52:36 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
     
     
@@ -75,7 +75,7 @@ That is quite an impact. Specially when you consider the difference between alt 
 &lt;h2 id=&quot;perfasm&quot;&gt;perfasm&lt;/h2&gt;
 
 &lt;p&gt;That is confirmed by the &lt;a href=&quot;https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt&quot;&gt;perfasm run&lt;/a&gt; which identify
-the area that does some arraycopy code as being that Hottest region for a slow run&lt;/p&gt;
+the area that does some &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/jmh/perfasm-v2-slow.txt#L228&quot;&gt;arraycopy code&lt;/a&gt; as being that Hottest region for a slow run&lt;/p&gt;
 
 &lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-asm&quot; data-lang=&quot;asm&quot;&gt; 53.68%   58.22%         C2, level 4  org.github.arnaudroger.csv.alt.CharConsumer2::consumeAllBuffer, version 549 (264 bytes) 
  21.02%   19.52%         C2, level 4  org.github.arnaudroger.csv.alt.CharConsumer2::consumeAllBuffer, version 549 (1804 bytes) 
