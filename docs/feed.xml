@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 02 Nov 2016 15:19:12 +0000</pubDate>
-    <lastBuildDate>Wed, 02 Nov 2016 15:19:12 +0000</lastBuildDate>
+    <pubDate>Wed, 02 Nov 2016 22:20:03 +0000</pubDate>
+    <lastBuildDate>Wed, 02 Nov 2016 22:20:03 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
     
     
@@ -516,7 +516,16 @@ java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s
     
       <item>
         <title>Jigsaw Maven Integration</title>
-        <description>&lt;h1 id=&quot;maven-building-java-9-ea-with-jigsaw&quot;&gt;Maven building java 9-ea with jigsaw&lt;/h1&gt;
+        <description>&lt;h1 id=&quot;update-2nd-of-november-2016&quot;&gt;Update 2nd of November 2016&lt;/h1&gt;
+
+&lt;p&gt;the Maven plugin 3.6.0 has been officially release with jigsaw support.&lt;/p&gt;
+
+&lt;p&gt;Gave it a quick try and I have some issues running/compiling the tests.
+seems that the test might need a module-info.java.&lt;/p&gt;
+
+&lt;p&gt;Will update when I have more info.&lt;/p&gt;
+
+&lt;h1 id=&quot;maven-building-java-9-ea-with-jigsaw&quot;&gt;Maven building java 9-ea with jigsaw&lt;/h1&gt;
 
 &lt;p&gt;If you don’t have a module-info.java then you don’t need to change anything.&lt;/p&gt;
 
