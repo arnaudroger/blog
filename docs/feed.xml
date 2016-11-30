@@ -5,9 +5,11 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 02 Nov 2016 23:18:27 +0000</pubDate>
-    <lastBuildDate>Wed, 02 Nov 2016 23:18:27 +0000</lastBuildDate>
+    <pubDate>Wed, 30 Nov 2016 13:03:28 +0000</pubDate>
+    <lastBuildDate>Wed, 30 Nov 2016 13:03:28 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
+    
+    
     
     
       <item>
@@ -297,8 +299,8 @@ java -jar target/benchmarks.jar Csv1Ben -f 1 -prof perfasm
 java -jar target/benchmarks.jar Csv2Ben -f 1 -prof perfasm 
 
 &lt;span class=&quot;c&quot;&gt;# run with flighrecorder&lt;/span&gt;
-java -jar target/benchmarks.jar Csv1Ben -f 1 -wi 10 -i 1000 -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints&quot;&lt;/span&gt; 
-java -jar target/benchmarks.jar Csv2Ben -f 1 -wi 10 -i 1000 -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints&quot;&lt;/span&gt; 
+java -jar target/benchmarks.jar Csv1Ben -f 1 -wi 10 -i 1000 -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints&quot;&lt;/span&gt; 
+java -jar target/benchmarks.jar Csv2Ben -f 1 -wi 10 -i 1000 -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints&quot;&lt;/span&gt; 
 &lt;span class=&quot;c&quot;&gt;# connect jmc to ForkedMain process&lt;/span&gt;
 
 &lt;span class=&quot;c&quot;&gt;# jitwatch run&lt;/span&gt;

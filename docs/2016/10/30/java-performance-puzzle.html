@@ -343,8 +343,8 @@ java -jar target/benchmarks.jar Csv1Ben -f 1 -prof perfasm
 java -jar target/benchmarks.jar Csv2Ben -f 1 -prof perfasm 
 
 <span class="c"># run with flighrecorder</span>
-java -jar target/benchmarks.jar Csv1Ben -f 1 -wi 10 -i 1000 -jvmArgs <span class="s2">"-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints"</span> 
-java -jar target/benchmarks.jar Csv2Ben -f 1 -wi 10 -i 1000 -jvmArgs <span class="s2">"-XX:+UnlockCommercialFeatures -XX:+FlightRecorder  -XX:+UnlockDiagnosticbugNonSafepoints"</span> 
+java -jar target/benchmarks.jar Csv1Ben -f 1 -wi 10 -i 1000 -jvmArgs <span class="s2">"-XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"</span> 
+java -jar target/benchmarks.jar Csv2Ben -f 1 -wi 10 -i 1000 -jvmArgs <span class="s2">"-XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"</span> 
 <span class="c"># connect jmc to ForkedMain process</span>
 
 <span class="c"># jitwatch run</span>
