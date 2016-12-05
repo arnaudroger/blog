@@ -229,7 +229,26 @@ And at the AfterParsing stage there is only one Sub left
 The allocated array depends on the Sub and on the If, but the Sub does not depends on the If.
 Which can explain why it is push outside it.
 
-It looks like the addition of the holder create a dependency to the if that force it to stay in there. 
-Otherwise part of the process or not dependent on that and get pushed outside.
+# What does that mean?
 
-Why there is on the holder but not on the direct? Could we introduce one that is cheaper than indirection?
+Because the sub does not depends on the if in the direct call in the remove useless and does not have any side effect
+the code get consolidate in one place and is generated outside the if.
+The holder stops that by creating a dependency on the if. Why does it create a dependency on the if?
+I don't know yet.
+
+# When is it a problem?
+
+If you have a 2 or more test that is followed by duplicate code with no side effect that code might 
+end up being executed outside the if. 
+
+Depending on the condition ratio and how many time the if is call the impact might start to show.
+In my csv parser it shows because it spends most of the time on those if and those
+triggers only for a small portion of the loop.
+
+# What next?
+
+I would really like to understand more why SubI does not depends on if but the field look will
+do that. 
+How does the removeuseless work? should the code with no side effect still be marked as depending on the if.
+The only place to go from there is to dig in the hotspot code ... and experiment and that will
+hopefully be part 3.
