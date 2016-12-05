@@ -6,11 +6,11 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Java Performance Puzzle Followup</title>
+  <title>Java Performance Puzzle Part2</title>
   <meta name="description" content="This post is a follow up to Java Performance Puzzle where I tried to reproduce the issue in a simplified manner and try to have a better understanding of the...">
 
   <link rel="stylesheet" href="/blog/css/main.css">
-  <link rel="canonical" href="http://arnaudroger.github.io/blog/2016/10/30/java-performance-puzzle-followup.html">
+  <link rel="canonical" href="http://arnaudroger.github.io/blog/2016/10/30/java-performance-puzzle-part2.html">
   <link rel="alternate" type="application/rss+xml" title="Eat Sleep Code Repeat." href="http://arnaudroger.github.io/blog/feed.xml">
 </head>
 
@@ -53,7 +53,7 @@
         <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
     <header class="post-header">
-        <h1 class="post-title" itemprop="name headline">Java Performance Puzzle Followup</h1>
+        <h1 class="post-title" itemprop="name headline">Java Performance Puzzle Part2</h1>
         <p class="post-meta"><time datetime="2016-10-30T00:00:00+01:00" itemprop="datePublished">Oct 30, 2016</time></p>
     </header>
 
@@ -115,12 +115,13 @@ to the blackhole when encountering ‘\n’.</p>
 
 <p>That still exhibit the behavior weird behavior, the holder make it go faster.</p>
 
+<p>Graph</p>
+
 <figure class="highlight"><pre><code class="language-txt" data-lang="txt"> Benchmark                                                    (nbCellsPerRow)  (nbRows)    Mode  Cnt    Score   Error  Units
  SimplifiedBenchmark.benchmarkDirect                                       10    500000  sample  242  233.642 ± 9.727  ms/op
  SimplifiedBenchmark.benchmarkHolder                                       10    500000  sample  327  169.661 ± 5.611  ms/op</code></pre></figure>
 
-<p>– asm for that –
-Which is pretty good. We can see some of the logic of copyOfRange being put outside the <a href="">condition check</a>.</p>
+<p>Which is pretty good. We can see some of the logic of <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified/asm-direct.txt#L99">copyOfRange</a> being put outside the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified/asm-direct.txt#L142">condition check</a>.</p>
 
 <p>But the code is still quite complex to reason with. Does the loop matters? Is it just the if conditions.</p>
 
@@ -219,6 +220,80 @@ java -jar target/benchmarks.jar  SimplifiedBenchmark2.benchmarkHolder -f 1 -i 10
 <p>the jvm might not be that stable and fail sometimes it should eventually run the benchmark successfully 
 and you should see the nodes information being pushed to Ideal Graph Visualizer.</p>
 
+<p>you can also export the data to a file using -XX:PrintIdealGraphFile=file.xml</p>
+
+<h2 id="nextcharholder-graph">nextCharHolder graph</h2>
+
+<p>Let’s start by looking at the graph for the one with the holder.</p>
+
+<p>If you look at asm for the direct you see the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L45">length calculation</a>
+being done before the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L64">’,’ check</a>.</p>
+
+<p>That <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-holder.txt#L58">sub</a> is done after the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-holder.txt#L49">if</a>
+in the holder version.</p>
+
+<p>If we isolate the sub in the graph we can see that it’s eventually depends on the if check.</p>
+
+<p><img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-before-2c-sub.png" alt="holder 2c sub" /></p>
+
+<p>Same for the sub in the second condition</p>
+
+<p><img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-before-0a-sub.png" alt="holder 0a sub" /></p>
+
+<p>That’s stay true after the remove useless in the AfterParsing stage
+see</p>
+<ul>
+  <li><a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-after-0a-sub.png">’,’ tree</a></li>
+  <li><a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-after-2c-sub.png">’' tree</a></li>
+</ul>
+
+<h2 id="nextchardirect-graph">nextCharDirect graph</h2>
+
+<p>But in direct call we can see the 2 subs in the Before RemoveUseless stage
+there is no dependency on the If</p>
+
+<ul>
+  <li>
+    <p>for the ‘,’
+<img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-before-2c-sub.png" alt="direct 2c sub" /></p>
+  </li>
+  <li>
+    <p>or the ‘\n’</p>
+  </li>
+</ul>
+
+<p><img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-before-0a-sub.png" alt="direct 0a sub" /></p>
+
+<p>And at the AfterParsing stage there is only one Sub left</p>
+
+<p><img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-after-2c_0a-sub.png" alt="direct-after-2c_0a-sub" /></p>
+
+<p>The allocated array depends on the Sub and on the If, but the Sub does not depends on the If.
+Which can explain why it is push outside it.</p>
+
+<h1 id="what-does-that-mean">What does that mean?</h1>
+
+<p>Because the sub does not depends on the if in the direct call in the remove useless and does not have any side effect
+the code get consolidate in one place and is generated outside the if.
+The holder stops that by creating a dependency on the if. Why does it create a dependency on the if?
+I don’t know yet.</p>
+
+<h1 id="when-is-it-a-problem">When is it a problem?</h1>
+
+<p>If you have a 2 or more test that is followed by duplicate code with no side effect that code might 
+end up being executed outside the if.</p>
+
+<p>Depending on the condition ratio and how many time the if is call the impact might start to show.
+In my csv parser it shows because it spends most of the time on those if and those
+triggers only for a small portion of the loop.</p>
+
+<h1 id="what-next">What next?</h1>
+
+<p>I would really like to understand more why SubI does not depends on if but the field look will
+do that. 
+How does the removeuseless work? should the code with no side effect still be marked as depending on the if.
+The only place to go from there is to dig in the hotspot code … and experiment and that will
+hopefully be part 3.</p>
 
     </div>
 
@@ -231,8 +306,8 @@ and you should see the nodes information being pushed to Ideal Graph Visualizer.
  *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables */
 /*
 var disqus_config = function () {
-    this.page.url = 'http://arnaudroger.github.io/blog/2016/10/30/java-performance-puzzle-followup.html';  // Replace PAGE_URL with your page's canonical URL variable
-    this.page.identifier = '/2016/10/30/java-performance-puzzle-followup'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    this.page.url = 'http://arnaudroger.github.io/blog/2016/10/30/java-performance-puzzle-part2.html';  // Replace PAGE_URL with your page's canonical URL variable
+    this.page.identifier = '/2016/10/30/java-performance-puzzle-part2'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
 };
 */
 (function() { // DON'T EDIT BELOW THIS LINE
