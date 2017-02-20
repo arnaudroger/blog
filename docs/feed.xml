@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 05 Dec 2016 11:41:13 +0000</pubDate>
-    <lastBuildDate>Mon, 05 Dec 2016 11:41:13 +0000</lastBuildDate>
+    <pubDate>Mon, 20 Feb 2017 15:09:27 +0000</pubDate>
+    <lastBuildDate>Mon, 20 Feb 2017 15:09:27 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
     
     
@@ -518,7 +518,25 @@ java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s
     
       <item>
         <title>Jigsaw Maven Integration</title>
-        <description>&lt;h1 id=&quot;update-2nd-of-november-2016&quot;&gt;Update 2nd of November 2016&lt;/h1&gt;
+        <description>&lt;h1 id=&quot;update-20th-of-february-2017&quot;&gt;Update 20th of February 2017&lt;/h1&gt;
+
+&lt;p&gt;Maven 3.3.9 does not seem to work very well with java 9, Maven 3.2.5 is fine. 
+seems to be some cglib access, there should be a way to open the package if I knew which one was failing.&lt;/p&gt;
+
+&lt;p&gt;To run the test with mockito&lt;/p&gt;
+
+&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;plugin&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.apache.maven.plugins&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;maven-surefire-plugin&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
+
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;configuration&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;argLine&amp;gt;&lt;/span&gt;--add-opens java.base/java.lang=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/argLine&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/configuration&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/plugin&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h1 id=&quot;update-2nd-of-november-2016&quot;&gt;Update 2nd of November 2016&lt;/h1&gt;
 
 &lt;p&gt;the Maven plugin 3.6.0 has been officially release with jigsaw support.&lt;/p&gt;
 
@@ -526,8 +544,6 @@ java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s
 seems that the test might need a module-info.java.&lt;/p&gt;
 
 &lt;p&gt;Will update when I have more info.&lt;/p&gt;
-
-&lt;p&gt;Mockito does not work in module because of objenesis that refer method in sun.reflect.ReflectionFactory that does not exist anymore.&lt;/p&gt;
 
 &lt;h1 id=&quot;maven-building-java-9-ea-with-jigsaw&quot;&gt;Maven building java 9-ea with jigsaw&lt;/h1&gt;
 

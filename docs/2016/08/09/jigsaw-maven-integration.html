@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <title>Jigsaw Maven Integration</title>
-  <meta name="description" content="Update 2nd of November 2016">
+  <meta name="description" content="Update 20th of February 2017">
 
   <link rel="stylesheet" href="/blog/css/main.css">
   <link rel="canonical" href="http://arnaudroger.github.io/blog/2016/08/09/jigsaw-maven-integration.html">
@@ -58,7 +58,25 @@
     </header>
 
     <div class="post-content" itemprop="articleBody">
-        <h1 id="update-2nd-of-november-2016">Update 2nd of November 2016</h1>
+        <h1 id="update-20th-of-february-2017">Update 20th of February 2017</h1>
+
+<p>Maven 3.3.9 does not seem to work very well with java 9, Maven 3.2.5 is fine. 
+seems to be some cglib access, there should be a way to open the package if I knew which one was failing.</p>
+
+<p>To run the test with mockito</p>
+
+<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;plugin&gt;</span>
+    <span class="nt">&lt;groupId&gt;</span>org.apache.maven.plugins<span class="nt">&lt;/groupId&gt;</span>
+    <span class="nt">&lt;artifactId&gt;</span>maven-surefire-plugin<span class="nt">&lt;/artifactId&gt;</span>
+
+    <span class="nt">&lt;configuration&gt;</span>
+        <span class="nt">&lt;argLine&gt;</span>--add-opens java.base/java.lang=ALL-UNNAMED<span class="nt">&lt;/argLine&gt;</span>
+    <span class="nt">&lt;/configuration&gt;</span>
+<span class="nt">&lt;/plugin&gt;</span>
+</code></pre>
+</div>
+
+<h1 id="update-2nd-of-november-2016">Update 2nd of November 2016</h1>
 
 <p>the Maven plugin 3.6.0 has been officially release with jigsaw support.</p>
 
@@ -66,8 +84,6 @@
 seems that the test might need a module-info.java.</p>
 
 <p>Will update when I have more info.</p>
-
-<p>Mockito does not work in module because of objenesis that refer method in sun.reflect.ReflectionFactory that does not exist anymore.</p>
 
 <h1 id="maven-building-java-9-ea-with-jigsaw">Maven building java 9-ea with jigsaw</h1>
 
