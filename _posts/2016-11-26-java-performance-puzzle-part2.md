@@ -4,8 +4,8 @@ date: 2016-10-30
 draft: true
 ---
 
-This post is a follow up to [Java Performance Puzzle](/2016/10/30/java-performance-puzzle.html) where I tried
-to reproduce the issue in a simplified manner and try to have a better understanding of the root cause.
+This post is a follow up to [Java Performance Puzzle](/2016/10/30/java-performance-puzzle.html) in which a small code change
+leads to a counter intuitive performance gain.
 
 # Simplified case
 
