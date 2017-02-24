@@ -17,7 +17,7 @@ In this post, I will talk how [SimpleFlatMapper](http://simpleflatmapper.org/) c
 
 ## StackOverflow
 
-Let's have a look at that [question](http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations)
+Let's have a look at this [question](http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations)
 posted 2 years ago.
 
 The class is as follow 
@@ -40,6 +40,16 @@ to aggregate in jOOQ as Lukas reply. And even with the RecordMapper, you can't r
  
  Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
  instantiate a Sfm JdbcMapper and we will be sorted
+ 
+## Add [sfm-jdbc](http://search.maven.org/#artifactdetails|org.simpleflatmapper|sfm-jdbc|3.11.1|) as dependency
+
+```xml
+<dependency>
+    <groupId>org.simpleflatmapper</groupId>
+    <artifactId>sfm-jdbc</artifactId>
+    <version>3.11.1</version>
+</dependency>
+```
  
 ## Instantiate the JdbcMapper
 

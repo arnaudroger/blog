@@ -75,7 +75,7 @@ talking about jOOQ strength and weaknesses.</p>
 
 <h2 id="stackoverflow">StackOverflow</h2>
 
-<p>Let’s have a look at that <a href="http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations">question</a>
+<p>Let’s have a look at this <a href="http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations">question</a>
 posted 2 years ago.</p>
 
 <p>The class is as follow</p>
@@ -98,6 +98,26 @@ to aggregate in jOOQ as Lukas reply. And even with the RecordMapper, you can’t
 
 <p>Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
  instantiate a Sfm JdbcMapper and we will be sorted</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>## Add [sfm-jdbc](http://search.maven.org/#artifactdetails</td>
+      <td>org.simpleflatmapper</td>
+      <td>sfm-jdbc</td>
+      <td>3.11.1</td>
+      <td>) as dependency</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
+    <span class="nt">&lt;groupId&gt;</span>org.simpleflatmapper<span class="nt">&lt;/groupId&gt;</span>
+    <span class="nt">&lt;artifactId&gt;</span>sfm-jdbc<span class="nt">&lt;/artifactId&gt;</span>
+    <span class="nt">&lt;version&gt;</span>3.11.1<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre>
+</div>
 
 <h2 id="instantiate-the-jdbcmapper">Instantiate the JdbcMapper</h2>
 

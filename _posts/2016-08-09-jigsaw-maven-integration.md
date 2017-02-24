@@ -2,6 +2,25 @@
 layout: post
 ---
 
+# Update 20th of February 2017
+
+
+Maven 3.3.9 does not seem to work very well with java 9, Maven 3.2.5 is fine. 
+seems to be some cglib access, there should be a way to open the package if I knew which one was failing.
+
+To run the test with mockito
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+
+    <configuration>
+        <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+    </configuration>
+</plugin>
+```
+
 # Update 2nd of November 2016
 
 the Maven plugin 3.6.0 has been officially release with jigsaw support.
@@ -12,7 +31,7 @@ seems that the test might need a module-info.java.
 Will update when I have more info.
 
 
-Mockito does not work in module because of objenesis that refer method in sun.reflect.ReflectionFactory that does not exist anymore.
+
 
 # Maven building java 9-ea with jigsaw
 
