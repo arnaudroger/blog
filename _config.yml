@@ -14,10 +14,10 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 title: Eat Sleep Code Repeat.
-email: arnaud.roger@gmail.com 
-description: Rambling of an old java developer. 
-baseurl: "/blog" 
-url: "http://arnaudroger.github.io" 
+email: arnaud.roger@gmail.com
+description: Rambling of an old java developer.
+baseurl: "/blog"
+url: "http://arnaudroger.github.io"
 twitter_username: arnaudroger
 github_username:  arnaudroger
 

@@ -33,18 +33,13 @@ jOOQ has some mapping functionality but it expects one object per row. It is the
 to return one Location object with a List of invited player with the RecordMapper. If a `Location` has 3 invited player
 all we can get is 3 identical Location object with 1 invited player each.
 
-## SimpleFlatMapper to the rescue.
+## SimpleFlatMapper to the rescue
 
-[SimpleFlatMapper](http://simpleflatmapper.org/) can integrate with [jOOQ](http://simpleflatmapper.org/0106-getting-started-jooq.html)
- but as stated earlier it is not possible to map multiple rows with one object with the jOOQ `RecordMapper` integration.
-[sfm-jdbc](http://simpleflatmapper.org/0102-getting-started-jdbc.html) though can work at the `ResultSet` level and aggregate the 
-[join](http://simpleflatmapper.org/0203-joins.html) into the Location object.
- Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
- instantiate a Sfm JdbcMapper and we will be sorted
+[SimpleFlatMapper](http://simpleflatmapper.org/) can integrate with [jOOQ](http://simpleflatmapper.org/0106-getting-started-jooq.html) but as stated earlier it is not possible to map multiple rows with one object with the jOOQ `RecordMapper` integration.
+[sfm-jdbc](http://simpleflatmapper.org/0102-getting-started-jdbc.html) though can work at the `ResultSet` level and aggregate the [join](http://simpleflatmapper.org/0203-joins.html) into the Location object.
+Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is instantiate a Sfm JdbcMapper and we will be sorted.
 
-## Add sfm-jdbc as dependency
-
-Maven Central [sfm-jdbc](http://search.maven.org/#artifactdetails|org.simpleflatmapper|sfm-jdbc|3.11.1|)
+## Add [sfm-jdbc](http://search.maven.org/#artifactdetails%7Corg.simpleflatmapper%7Csfm-jdbc%7C3.11.1%7C) as dependency 
 
 ```xml
 <dependency>
