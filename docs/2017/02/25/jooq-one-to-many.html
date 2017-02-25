@@ -93,14 +93,11 @@ ask about the possibility of mapping a many-to-many in the following class</p>
 to return one Location object with a List of invited player with the RecordMapper. If a <code class="highlighter-rouge">Location</code> has 3 invited player
 all we can get is 3 identical Location object with 1 invited player each.</p>
 
-<h2 id="simpleflatmapper-to-the-rescue">SimpleFlatMapper to the rescue.</h2>
+<h2 id="simpleflatmapper-to-the-rescue">SimpleFlatMapper to the rescue</h2>
 
-<p><a href="http://simpleflatmapper.org/">SimpleFlatMapper</a> can integrate with <a href="http://simpleflatmapper.org/0106-getting-started-jooq.html">jOOQ</a>
- but as stated earlier it is not possible to map multiple rows with one object with the jOOQ <code class="highlighter-rouge">RecordMapper</code> integration.
-<a href="http://simpleflatmapper.org/0102-getting-started-jdbc.html">sfm-jdbc</a> though can work at the <code class="highlighter-rouge">ResultSet</code> level and aggregate the 
-<a href="http://simpleflatmapper.org/0203-joins.html">join</a> into the Location object.
- Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
- instantiate a Sfm JdbcMapper and we will be sorted</p>
+<p><a href="http://simpleflatmapper.org/">SimpleFlatMapper</a> can integrate with <a href="http://simpleflatmapper.org/0106-getting-started-jooq.html">jOOQ</a> but as stated earlier it is not possible to map multiple rows with one object with the jOOQ <code class="highlighter-rouge">RecordMapper</code> integration.
+<a href="http://simpleflatmapper.org/0102-getting-started-jdbc.html">sfm-jdbc</a> though can work at the <code class="highlighter-rouge">ResultSet</code> level and aggregate the <a href="http://simpleflatmapper.org/0203-joins.html">join</a> into the Location object.
+Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is instantiate a Sfm JdbcMapper and we will be sorted.</p>
 
 <p>## Add sfm-jdbc as dependency</p>
 

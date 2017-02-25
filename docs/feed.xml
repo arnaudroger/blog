@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sat, 25 Feb 2017 11:33:34 +0000</pubDate>
-    <lastBuildDate>Sat, 25 Feb 2017 11:33:34 +0000</lastBuildDate>
+    <pubDate>Sat, 25 Feb 2017 11:35:15 +0000</pubDate>
+    <lastBuildDate>Sat, 25 Feb 2017 11:35:15 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -45,14 +45,11 @@ ask about the possibility of mapping a many-to-many in the following class&lt;/p
 to return one Location object with a List of invited player with the RecordMapper. If a &lt;code class=&quot;highlighter-rouge&quot;&gt;Location&lt;/code&gt; has 3 invited player
 all we can get is 3 identical Location object with 1 invited player each.&lt;/p&gt;
 
-&lt;h2 id=&quot;simpleflatmapper-to-the-rescue&quot;&gt;SimpleFlatMapper to the rescue.&lt;/h2&gt;
+&lt;h2 id=&quot;simpleflatmapper-to-the-rescue&quot;&gt;SimpleFlatMapper to the rescue&lt;/h2&gt;
 
-&lt;p&gt;&lt;a href=&quot;http://simpleflatmapper.org/&quot;&gt;SimpleFlatMapper&lt;/a&gt; can integrate with &lt;a href=&quot;http://simpleflatmapper.org/0106-getting-started-jooq.html&quot;&gt;jOOQ&lt;/a&gt;
- but as stated earlier it is not possible to map multiple rows with one object with the jOOQ &lt;code class=&quot;highlighter-rouge&quot;&gt;RecordMapper&lt;/code&gt; integration.
-&lt;a href=&quot;http://simpleflatmapper.org/0102-getting-started-jdbc.html&quot;&gt;sfm-jdbc&lt;/a&gt; though can work at the &lt;code class=&quot;highlighter-rouge&quot;&gt;ResultSet&lt;/code&gt; level and aggregate the 
-&lt;a href=&quot;http://simpleflatmapper.org/0203-joins.html&quot;&gt;join&lt;/a&gt; into the Location object.
- Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
- instantiate a Sfm JdbcMapper and we will be sorted&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://simpleflatmapper.org/&quot;&gt;SimpleFlatMapper&lt;/a&gt; can integrate with &lt;a href=&quot;http://simpleflatmapper.org/0106-getting-started-jooq.html&quot;&gt;jOOQ&lt;/a&gt; but as stated earlier it is not possible to map multiple rows with one object with the jOOQ &lt;code class=&quot;highlighter-rouge&quot;&gt;RecordMapper&lt;/code&gt; integration.
+&lt;a href=&quot;http://simpleflatmapper.org/0102-getting-started-jdbc.html&quot;&gt;sfm-jdbc&lt;/a&gt; though can work at the &lt;code class=&quot;highlighter-rouge&quot;&gt;ResultSet&lt;/code&gt; level and aggregate the &lt;a href=&quot;http://simpleflatmapper.org/0203-joins.html&quot;&gt;join&lt;/a&gt; into the Location object.
+Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is instantiate a Sfm JdbcMapper and we will be sorted.&lt;/p&gt;
 
 &lt;p&gt;## Add sfm-jdbc as dependency&lt;/p&gt;
 
