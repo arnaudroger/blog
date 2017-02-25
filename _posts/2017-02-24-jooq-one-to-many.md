@@ -1,6 +1,7 @@
 ---
 layout: post
 date: 2017-02-25
+title: jOOQ mapping x-to-many to POJO
 draft: false
 ---
 
