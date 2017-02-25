@@ -85,7 +85,8 @@ try (ResultSet rs =
                 LOCATION.PLAYER_ID.as("player"), 
                 LOCATION2PLAYER.PLAYERID.as("invited_players_player"))
         .from(LOCATION)
-            .leftOuterJoin(LOCATION2PLAYER).on(LOCATION2PLAYER.LOCATION_ID.eq(LOCATION.LOCATION_ID))
+            .leftOuterJoin(LOCATION2PLAYER)
+                .on(LOCATION2PLAYER.LOCATION_ID.eq(LOCATION.LOCATION_ID))
         .fetchResultSet()) { 
     Stream<Location> stream = jdbcMapper.stream(rs);
     
