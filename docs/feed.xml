@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sat, 25 Feb 2017 11:04:43 +0000</pubDate>
-    <lastBuildDate>Sat, 25 Feb 2017 11:04:43 +0000</lastBuildDate>
+    <pubDate>Sat, 25 Feb 2017 11:06:41 +0000</pubDate>
+    <lastBuildDate>Sat, 25 Feb 2017 11:06:41 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
     
     
@@ -445,7 +445,7 @@ java -jar target/benchmarks.jar Csv2Ben -f 1 -jvmArgs &lt;span class=&quot;s2&qu
     
       <item>
         <title>Consumer In Place Of Returning List</title>
-        <description>&lt;h1 id=&quot;why-you-should-replace-your-return-listt-with-a-consumert-parameter&quot;&gt;Why you should replace your return List&lt;T&gt; with a Consumer&lt;T&gt; parameter&lt;/T&gt;&lt;/T&gt;&lt;/h1&gt;
+        <description>&lt;h1 id=&quot;why-you-should-replace-your-return-list-with-a-consumer-parameter&quot;&gt;Why you should replace your return List&lt;T&gt; with a Consumer&lt;T&gt; parameter&lt;/T&gt;&lt;/T&gt;&lt;/h1&gt;
 
 &lt;p&gt;It is common practice to have your Service layer, Dao layer etc… 
 return a List&lt;T&gt; or Collection&lt;T&gt; as a result of the call.&lt;/T&gt;&lt;/T&gt;&lt;/p&gt;
