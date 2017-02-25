@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sat, 25 Feb 2017 11:03:45 +0000</pubDate>
-    <lastBuildDate>Sat, 25 Feb 2017 11:03:45 +0000</lastBuildDate>
+    <pubDate>Sat, 25 Feb 2017 11:04:43 +0000</pubDate>
+    <lastBuildDate>Sat, 25 Feb 2017 11:04:43 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
     
     
@@ -54,14 +54,16 @@ all we can get is 3 identical Location object with 1 invited player each.&lt;/p&
  Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
  instantiate a Sfm JdbcMapper and we will be sorted&lt;/p&gt;
 
+&lt;p&gt;## Add sfm-jdbc as dependency&lt;/p&gt;
+
 &lt;table&gt;
   &lt;tbody&gt;
     &lt;tr&gt;
-      &lt;td&gt;## Add [sfm-jdbc](http://search.maven.org/#artifactdetails&lt;/td&gt;
+      &lt;td&gt;Maven Central [sfm-jdbc](http://search.maven.org/#artifactdetails&lt;/td&gt;
       &lt;td&gt;org.simpleflatmapper&lt;/td&gt;
       &lt;td&gt;sfm-jdbc&lt;/td&gt;
       &lt;td&gt;3.11.1&lt;/td&gt;
-      &lt;td&gt;) as dependency&lt;/td&gt;
+      &lt;td&gt;)&lt;/td&gt;
     &lt;/tr&gt;
   &lt;/tbody&gt;
 &lt;/table&gt;
