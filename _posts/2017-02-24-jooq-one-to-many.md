@@ -59,7 +59,7 @@ For join aggregation, Sfm needs to know what are the column representing the id 
 assuming the following SQL Query would return the following fields, `player` is the id of the root object. 
 
 ```sql
-p.player-id as player, l.name as name, i.player-id as invited_players_player
+p.player-id as player, l.name as name, l1p.player-id as invited_players_player
 ```
 
 to create the JdbcMapper just write the following code:
@@ -78,9 +78,19 @@ I will skip on the resource closing code.
 
 ```java
 
-ResultSet rs = dsl.select ... .fetchResultSet();
-
-Stream<Location> stream = jdbcMapper.stream(rs);
+try (ResultSet rs = 
+    dsl
+        .select(
+                LOCATION.NAME.as("name"), 
+                LOCATION.PLAYER_ID.as("player"), 
+                LOCATION2PLAYER.PLAYERID.as("invited_players_player"))
+        .from(LOCATION)
+            .leftOuterJoin(LOCATION2PLAYER).on(LOCATION2PLAYER.LOCATION_ID.eq(LOCATION.LOCATION_ID))
+        .fetchResultSet()) { 
+    Stream<Location> stream = jdbcMapper.stream(rs);
+    
+    // do something on the stream.
+}
 
 ```
 

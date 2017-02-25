@@ -126,7 +126,7 @@ all we can get is 3 identical Location object with 1 invited player each.</p>
 
 <p>assuming the following SQL Query would return the following fields, <code class="highlighter-rouge">player</code> is the id of the root object.</p>
 
-<div class="language-sql highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="p">.</span><span class="n">player</span><span class="o">-</span><span class="n">id</span> <span class="k">as</span> <span class="n">player</span><span class="p">,</span> <span class="n">l</span><span class="p">.</span><span class="n">name</span> <span class="k">as</span> <span class="n">name</span><span class="p">,</span> <span class="n">i</span><span class="p">.</span><span class="n">player</span><span class="o">-</span><span class="n">id</span> <span class="k">as</span> <span class="n">invited_players_player</span>
+<div class="language-sql highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="p">.</span><span class="n">player</span><span class="o">-</span><span class="n">id</span> <span class="k">as</span> <span class="n">player</span><span class="p">,</span> <span class="n">l</span><span class="p">.</span><span class="n">name</span> <span class="k">as</span> <span class="n">name</span><span class="p">,</span> <span class="n">l1p</span><span class="p">.</span><span class="n">player</span><span class="o">-</span><span class="n">id</span> <span class="k">as</span> <span class="n">invited_players_player</span>
 </code></pre>
 </div>
 
@@ -145,9 +145,19 @@ all we can get is 3 identical Location object with 1 invited player each.</p>
 I will skip on the resource closing code.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>
-<span class="n">ResultSet</span> <span class="n">rs</span> <span class="o">=</span> <span class="n">dsl</span><span class="o">.</span><span class="na">select</span> <span class="o">...</span> <span class="o">.</span><span class="na">fetchResultSet</span><span class="o">();</span>
-
-<span class="n">Stream</span><span class="o">&lt;</span><span class="n">Location</span><span class="o">&gt;</span> <span class="n">stream</span> <span class="o">=</span> <span class="n">jdbcMapper</span><span class="o">.</span><span class="na">stream</span><span class="o">(</span><span class="n">rs</span><span class="o">);</span>
+<span class="k">try</span> <span class="o">(</span><span class="n">ResultSet</span> <span class="n">rs</span> <span class="o">=</span> 
+    <span class="n">dsl</span>
+        <span class="o">.</span><span class="na">select</span><span class="o">(</span>
+                <span class="n">LOCATION</span><span class="o">.</span><span class="na">NAME</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="s">"name"</span><span class="o">),</span> 
+                <span class="n">LOCATION</span><span class="o">.</span><span class="na">PLAYER_ID</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="s">"player"</span><span class="o">),</span> 
+                <span class="n">LOCATION2PLAYER</span><span class="o">.</span><span class="na">PLAYERID</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="s">"invited_players_player"</span><span class="o">))</span>
+        <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">LOCATION</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">leftOuterJoin</span><span class="o">(</span><span class="n">LOCATION2PLAYER</span><span class="o">).</span><span class="na">on</span><span class="o">(</span><span class="n">LOCATION2PLAYER</span><span class="o">.</span><span class="na">LOCATION_ID</span><span class="o">.</span><span class="na">eq</span><span class="o">(</span><span class="n">LOCATION</span><span class="o">.</span><span class="na">LOCATION_ID</span><span class="o">))</span>
+        <span class="o">.</span><span class="na">fetchResultSet</span><span class="o">())</span> <span class="o">{</span> 
+    <span class="n">Stream</span><span class="o">&lt;</span><span class="n">Location</span><span class="o">&gt;</span> <span class="n">stream</span> <span class="o">=</span> <span class="n">jdbcMapper</span><span class="o">.</span><span class="na">stream</span><span class="o">(</span><span class="n">rs</span><span class="o">);</span>
+    
+    <span class="c1">// do something on the stream.</span>
+<span class="o">}</span>
 
 </code></pre>
 </div>
