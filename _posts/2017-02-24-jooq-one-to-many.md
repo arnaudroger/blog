@@ -1,7 +1,7 @@
 ---
 layout: post
 date: 2017-02-24
-draft: true
+draft: false
 ---
 
 Marco Behler wrote a post [JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT)](https://www.marcobehler.com/2014/07/06/the-java-persistence-ghetto-and-how-jooq-might-change-that-2/)

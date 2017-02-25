@@ -5,10 +5,112 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sat, 25 Feb 2017 00:25:20 +0000</pubDate>
-    <lastBuildDate>Sat, 25 Feb 2017 00:25:20 +0000</lastBuildDate>
+    <pubDate>Sat, 25 Feb 2017 02:00:43 +0000</pubDate>
+    <lastBuildDate>Sat, 25 Feb 2017 02:00:43 +0000</lastBuildDate>
     <generator>Jekyll v3.2.1</generator>
     
+    
+      <item>
+        <title>Jooq One To Many</title>
+        <description>&lt;p&gt;Marco Behler wrote a post &lt;a href=&quot;https://www.marcobehler.com/2014/07/06/the-java-persistence-ghetto-and-how-jooq-might-change-that-2/&quot;&gt;JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT)&lt;/a&gt;
+talking about jOOQ strength and weaknesses.&lt;/p&gt;
+
+&lt;p&gt;The main pain point seems to be many to many mapping&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;ol&gt;
+    &lt;li&gt;HOW DO I CONVERT BETWEEN DATABASE &amp;lt;–&amp;gt; OBJECTS?&lt;/li&gt;
+  &lt;/ol&gt;
+
+  &lt;p&gt;After or before querying the database, the next question is: How do we go from database to objects and vice versa. And Hibernate et. al are really strong here. jOOQ has active records and yep, you can plug in stuff like objectmodelmapper, but mapping with jOOQ does not yet give you this “wow-effect” and feels clumsy at time. Try to get a more complex many-to-many relationship mapped and sooner or later you’ll end up writing some query DTOs and  continue mapping to other objects. This is actually one of our main gripes with jOOQ at the moment.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;In this post, I will talk how &lt;a href=&quot;http://simpleflatmapper.org/&quot;&gt;SimpleFlatMapper&lt;/a&gt; can help solving those issues.&lt;/p&gt;
+
+&lt;h2 id=&quot;stackoverflow&quot;&gt;StackOverflow&lt;/h2&gt;
+
+&lt;p&gt;Let’s have a look at this &lt;a href=&quot;http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations&quot;&gt;question&lt;/a&gt;
+posted 2 years ago.&lt;/p&gt;
+
+&lt;p&gt;The class is as follow&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Location&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;UUID&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;player&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UUID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;invitedPlayers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;with 4 tables Location, Player, and a many-to-many join table between those 2.
+jOOQ has some mapping functionality but it expects one object per row. It is now possible 
+to aggregate in jOOQ as Lukas reply. And even with the RecordMapper, you can’t really solve that problem.&lt;/p&gt;
+
+&lt;h2 id=&quot;simpleflatmapper-to-the-rescue&quot;&gt;SimpleFlatMapper to the rescue.&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://simpleflatmapper.org/&quot;&gt;SimpleFlatMapper&lt;/a&gt; has &lt;a href=&quot;http://simpleflatmapper.org/0106-getting-started-jooq.html&quot;&gt;jOOQ integration&lt;/a&gt;
+ but as stated in the doc it is not possible to aggregate object in with the jOOQ record mapper integration.&lt;/p&gt;
+
+&lt;p&gt;Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
+ instantiate a Sfm JdbcMapper and we will be sorted&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;## Add [sfm-jdbc](http://search.maven.org/#artifactdetails&lt;/td&gt;
+      &lt;td&gt;org.simpleflatmapper&lt;/td&gt;
+      &lt;td&gt;sfm-jdbc&lt;/td&gt;
+      &lt;td&gt;3.11.1&lt;/td&gt;
+      &lt;td&gt;) as dependency&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.simpleflatmapper&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;sfm-jdbc&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;version&amp;gt;&lt;/span&gt;3.11.1&lt;span class=&quot;nt&quot;&gt;&amp;lt;/version&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;instantiate-the-jdbcmapper&quot;&gt;Instantiate the JdbcMapper&lt;/h2&gt;
+
+&lt;p&gt;For join aggregation, Sfm needs to know what are the column representing the id of the object.&lt;/p&gt;
+
+&lt;p&gt;assuming the SQL Query would return the following fields&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;player&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;player&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;player&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;invitedPlayers_id&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;JdbcMapper&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Location&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;jdbcMapper&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 
+    &lt;span class=&quot;n&quot;&gt;JdbcMapperFactory&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;addKeys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;player&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;newMapper&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Location&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;execute-your-sqlquery-with-jooq&quot;&gt;Execute your sqlQuery with jOOQ&lt;/h2&gt;
+
+&lt;p&gt;all that’s left is to execute the query, retrieve the &lt;code class=&quot;highlighter-rouge&quot;&gt;ResultSet&lt;/code&gt; and use the jdbcMapper to fetch the result.
+I will skip on the resource closing code.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
+&lt;span class=&quot;n&quot;&gt;ResultSet&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dsl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;fetchResultSet&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;Stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Location&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stream&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;jdbcMapper&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;and here you go you will have a Stream of Location as describes in the original question.&lt;/p&gt;
+
+&lt;p&gt;More information about &lt;a href=&quot;http://simpleflatmapper.org/0203-joins.html&quot;&gt;Sfm Joins&lt;/a&gt;.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 24 Feb 2017 00:00:00 +0000</pubDate>
+        <link>http://arnaudroger.github.io/blog/2017/02/24/jooq-one-to-many.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2017/02/24/jooq-one-to-many.html</guid>
+        
+        
+      </item>
     
     
     
