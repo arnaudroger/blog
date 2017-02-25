@@ -3,10 +3,10 @@
   <channel>
     <title>Eat Sleep Code Repeat.</title>
     <description>Rambling of an old java developer.</description>
-    <link>http://arnaudroger.github.io//blog/</link>
-    <atom:link href="http://arnaudroger.github.io//blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sat, 25 Feb 2017 11:32:57 +0000</pubDate>
-    <lastBuildDate>Sat, 25 Feb 2017 11:32:57 +0000</lastBuildDate>
+    <link>http://arnaudroger.github.io/blog/</link>
+    <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
+    <pubDate>Sat, 25 Feb 2017 11:33:34 +0000</pubDate>
+    <lastBuildDate>Sat, 25 Feb 2017 11:33:34 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -124,8 +124,8 @@ I will skip on the resource closing code.&lt;/p&gt;
 &lt;p&gt;More information about &lt;a href=&quot;http://simpleflatmapper.org/0203-joins.html&quot;&gt;Sfm Joins&lt;/a&gt;.&lt;/p&gt;
 </description>
         <pubDate>Sat, 25 Feb 2017 00:00:00 +0000</pubDate>
-        <link>http://arnaudroger.github.io//blog/2017/02/25/jooq-one-to-many.html</link>
-        <guid isPermaLink="true">http://arnaudroger.github.io//blog/2017/02/25/jooq-one-to-many.html</guid>
+        <link>http://arnaudroger.github.io/blog/2017/02/25/jooq-one-to-many.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2017/02/25/jooq-one-to-many.html</guid>
         
         
       </item>
@@ -433,8 +433,8 @@ java -jar target/benchmarks.jar Csv2Ben -f 1 -jvmArgs &lt;span class=&quot;s2&qu
 
 </description>
         <pubDate>Sun, 30 Oct 2016 00:00:00 +0100</pubDate>
-        <link>http://arnaudroger.github.io//blog/2016/10/30/java-performance-puzzle.html</link>
-        <guid isPermaLink="true">http://arnaudroger.github.io//blog/2016/10/30/java-performance-puzzle.html</guid>
+        <link>http://arnaudroger.github.io/blog/2016/10/30/java-performance-puzzle.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2016/10/30/java-performance-puzzle.html</guid>
         
         
       </item>
@@ -630,8 +630,8 @@ java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s
 
 </description>
         <pubDate>Mon, 19 Sep 2016 00:00:00 +0100</pubDate>
-        <link>http://arnaudroger.github.io//blog/2016/09/19/consumer-in-place-of-returning-list.html</link>
-        <guid isPermaLink="true">http://arnaudroger.github.io//blog/2016/09/19/consumer-in-place-of-returning-list.html</guid>
+        <link>http://arnaudroger.github.io/blog/2016/09/19/consumer-in-place-of-returning-list.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2016/09/19/consumer-in-place-of-returning-list.html</guid>
         
         
       </item>
@@ -864,8 +864,8 @@ You will need to export the following packages to run the code&lt;/p&gt;
 
 </description>
         <pubDate>Tue, 09 Aug 2016 00:00:00 +0100</pubDate>
-        <link>http://arnaudroger.github.io//blog/2016/08/09/jigsaw-maven-integration.html</link>
-        <guid isPermaLink="true">http://arnaudroger.github.io//blog/2016/08/09/jigsaw-maven-integration.html</guid>
+        <link>http://arnaudroger.github.io/blog/2016/08/09/jigsaw-maven-integration.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2016/08/09/jigsaw-maven-integration.html</guid>
         
         
       </item>
@@ -1132,8 +1132,8 @@ If so you probably want to add a validation check for the version of the library
 
 </description>
         <pubDate>Mon, 18 Jul 2016 00:00:00 +0100</pubDate>
-        <link>http://arnaudroger.github.io//blog/2016/07/18/testing-with-custom-classpath.html</link>
-        <guid isPermaLink="true">http://arnaudroger.github.io//blog/2016/07/18/testing-with-custom-classpath.html</guid>
+        <link>http://arnaudroger.github.io/blog/2016/07/18/testing-with-custom-classpath.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2016/07/18/testing-with-custom-classpath.html</guid>
         
         
       </item>
