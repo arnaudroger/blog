@@ -4,7 +4,7 @@ date: 2017-02-24
 draft: false
 ---
 
-Marco Behler wrote a post [JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT)](https://www.marcobehler.com/2014/07/06/the-java-persistence-ghetto-and-how-jooq-might-change-that-2/)
+Marco Behler wrote [JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT)](https://www.marcobehler.com/2014/07/06/the-java-persistence-ghetto-and-how-jooq-might-change-that-2/)
 talking about jOOQ strength and weaknesses. 
 
 The main pain point seems to be many to many mapping 
@@ -13,14 +13,12 @@ The main pain point seems to be many to many mapping
 >  
 > After or before querying the database, the next question is: How do we go from database to objects and vice versa. And Hibernate et. al are really strong here. jOOQ has active records and yep, you can plug in stuff like objectmodelmapper, but mapping with jOOQ does not yet give you this "wow-effect" and feels clumsy at time. Try to get a more complex many-to-many relationship mapped and sooner or later you'll end up writing some query DTOs and  continue mapping to other objects. This is actually one of our main gripes with jOOQ at the moment.
 
-In this post, I will talk how [SimpleFlatMapper](http://simpleflatmapper.org/) can help solving those issues.
+In this post, I will talk how [SimpleFlatMapper](http://simpleflatmapper.org/) can help solving jOOQ mapping issues.
 
 ## StackOverflow
 
-Let's have a look at this [question](http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations)
-posted 2 years ago.
-
-The class is as follow 
+In this [StackOverflow question](http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations) a jOOQ user
+ask about the possibility of mapping a many-to-many in the following class
 
 ```java 
 public class Location {
@@ -29,15 +27,18 @@ public class Location {
     private List<UUID> invitedPlayers;
 ```
 
-with 4 tables Location, Player, and a many-to-many join table between those 2.
-jOOQ has some mapping functionality but it expects one object per row. It is now possible 
-to aggregate in jOOQ as Lukas reply. And even with the RecordMapper, you can't really solve that problem.
+And a schema with 3 tables `Location`, `Player`, and `location2player` many-to-many join table between the first 2.
+
+jOOQ has some mapping functionality but it expects one object per row. It is therefore not possible 
+to return one Location object with a List of invited player with the RecordMapper. If a `Location` has 3 invited player
+all we can get is 3 identical Location object with 1 invited player each.
 
 ## SimpleFlatMapper to the rescue.
 
-[SimpleFlatMapper](http://simpleflatmapper.org/) has [jOOQ integration](http://simpleflatmapper.org/0106-getting-started-jooq.html)
- but as stated in the doc it is not possible to aggregate object in with the jOOQ record mapper integration.
- 
+[SimpleFlatMapper](http://simpleflatmapper.org/) can integrate with [jOOQ](http://simpleflatmapper.org/0106-getting-started-jooq.html)
+ but as stated earlier it is not possible to map multiple rows with one object with the jOOQ `RecordMapper` integration.
+[sfm-jdbc](http://simpleflatmapper.org/0102-getting-started-jdbc.html) though can work at the `ResultSet` level and aggregate the 
+[join](http://simpleflatmapper.org/0203-joins.html) into the Location object.
  Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
  instantiate a Sfm JdbcMapper and we will be sorted
  
@@ -55,17 +56,20 @@ to aggregate in jOOQ as Lukas reply. And even with the RecordMapper, you can't r
 
 For join aggregation, Sfm needs to know what are the column representing the id of the object.
 
-assuming the SQL Query would return the following fields
+assuming the following SQL Query would return the following fields, `player` is the id of the root object. 
 
 ```sql
-p.player-id as player, l.name as name, i.player-id as invitedPlayers_id
+p.player-id as player, l.name as name, i.player-id as invited_players_player
 ```
 
+to create the JdbcMapper just write the following code:
 
 ```java
 JdbcMapper<Location> jdbcMapper = 
     JdbcMapperFactory.addKeys("player").newMapper(Location.class);
 ```
+
+The `Mapper` is thread-safe it is recommended to have only one instance per type, or type - columns for [static mapper](http://simpleflatmapper.org/0102-getting-started-jdbc.html#static-mapping).
 
 ## Execute your sqlQuery with jOOQ
 
@@ -80,6 +84,6 @@ Stream<Location> stream = jdbcMapper.stream(rs);
 
 ```
 
-and here you go you will have a Stream of Location as describes in the original question.
+and here you go you will have a Stream of Location as describes in the original question. Simple.
 
 More information about [Sfm Joins](http://simpleflatmapper.org/0203-joins.html).

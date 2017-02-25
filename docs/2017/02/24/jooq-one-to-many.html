@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <title>Jooq One To Many</title>
-  <meta name="description" content="Marco Behler wrote a post JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT) talking about jOOQ strength and weaknesses.">
+  <meta name="description" content="Marco Behler wrote JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT) talking about jOOQ strength and weaknesses.">
 
   <link rel="stylesheet" href="/blog/css/main.css">
   <link rel="canonical" href="http://arnaudroger.github.io/blog/2017/02/24/jooq-one-to-many.html">
@@ -58,7 +58,7 @@
     </header>
 
     <div class="post-content" itemprop="articleBody">
-        <p>Marco Behler wrote a post <a href="https://www.marcobehler.com/2014/07/06/the-java-persistence-ghetto-and-how-jooq-might-change-that-2/">JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT)</a>
+        <p>Marco Behler wrote <a href="https://www.marcobehler.com/2014/07/06/the-java-persistence-ghetto-and-how-jooq-might-change-that-2/">JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT)</a>
 talking about jOOQ strength and weaknesses.</p>
 
 <p>The main pain point seems to be many to many mapping</p>
@@ -71,14 +71,12 @@ talking about jOOQ strength and weaknesses.</p>
   <p>After or before querying the database, the next question is: How do we go from database to objects and vice versa. And Hibernate et. al are really strong here. jOOQ has active records and yep, you can plug in stuff like objectmodelmapper, but mapping with jOOQ does not yet give you this “wow-effect” and feels clumsy at time. Try to get a more complex many-to-many relationship mapped and sooner or later you’ll end up writing some query DTOs and  continue mapping to other objects. This is actually one of our main gripes with jOOQ at the moment.</p>
 </blockquote>
 
-<p>In this post, I will talk how <a href="http://simpleflatmapper.org/">SimpleFlatMapper</a> can help solving those issues.</p>
+<p>In this post, I will talk how <a href="http://simpleflatmapper.org/">SimpleFlatMapper</a> can help solving jOOQ mapping issues.</p>
 
 <h2 id="stackoverflow">StackOverflow</h2>
 
-<p>Let’s have a look at this <a href="http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations">question</a>
-posted 2 years ago.</p>
-
-<p>The class is as follow</p>
+<p>In this <a href="http://stackoverflow.com/questions/23329127/jooq-pojos-with-one-to-many-and-many-to-many-relations">StackOverflow question</a> a jOOQ user
+ask about the possibility of mapping a many-to-many in the following class</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Location</span> <span class="o">{</span>
     <span class="kd">private</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">name</span><span class="o">;</span>
@@ -87,16 +85,19 @@ posted 2 years ago.</p>
 </code></pre>
 </div>
 
-<p>with 4 tables Location, Player, and a many-to-many join table between those 2.
-jOOQ has some mapping functionality but it expects one object per row. It is now possible 
-to aggregate in jOOQ as Lukas reply. And even with the RecordMapper, you can’t really solve that problem.</p>
+<p>And a schema with 3 tables <code class="highlighter-rouge">Location</code>, <code class="highlighter-rouge">Player</code>, and <code class="highlighter-rouge">location2player</code> many-to-many join table between the first 2.</p>
+
+<p>jOOQ has some mapping functionality but it expects one object per row. It is therefore not possible 
+to return one Location object with a List of invited player with the RecordMapper. If a <code class="highlighter-rouge">Location</code> has 3 invited player
+all we can get is 3 identical Location object with 1 invited player each.</p>
 
 <h2 id="simpleflatmapper-to-the-rescue">SimpleFlatMapper to the rescue.</h2>
 
-<p><a href="http://simpleflatmapper.org/">SimpleFlatMapper</a> has <a href="http://simpleflatmapper.org/0106-getting-started-jooq.html">jOOQ integration</a>
- but as stated in the doc it is not possible to aggregate object in with the jOOQ record mapper integration.</p>
-
-<p>Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
+<p><a href="http://simpleflatmapper.org/">SimpleFlatMapper</a> can integrate with <a href="http://simpleflatmapper.org/0106-getting-started-jooq.html">jOOQ</a>
+ but as stated earlier it is not possible to map multiple rows with one object with the jOOQ <code class="highlighter-rouge">RecordMapper</code> integration.
+<a href="http://simpleflatmapper.org/0102-getting-started-jdbc.html">sfm-jdbc</a> though can work at the <code class="highlighter-rouge">ResultSet</code> level and aggregate the 
+<a href="http://simpleflatmapper.org/0203-joins.html">join</a> into the Location object.
+ Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
  instantiate a Sfm JdbcMapper and we will be sorted</p>
 
 <table>
@@ -123,16 +124,20 @@ to aggregate in jOOQ as Lukas reply. And even with the RecordMapper, you can’t
 
 <p>For join aggregation, Sfm needs to know what are the column representing the id of the object.</p>
 
-<p>assuming the SQL Query would return the following fields</p>
+<p>assuming the following SQL Query would return the following fields, <code class="highlighter-rouge">player</code> is the id of the root object.</p>
 
-<div class="language-sql highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="p">.</span><span class="n">player</span><span class="o">-</span><span class="n">id</span> <span class="k">as</span> <span class="n">player</span><span class="p">,</span> <span class="n">l</span><span class="p">.</span><span class="n">name</span> <span class="k">as</span> <span class="n">name</span><span class="p">,</span> <span class="n">i</span><span class="p">.</span><span class="n">player</span><span class="o">-</span><span class="n">id</span> <span class="k">as</span> <span class="n">invitedPlayers_id</span>
+<div class="language-sql highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="p">.</span><span class="n">player</span><span class="o">-</span><span class="n">id</span> <span class="k">as</span> <span class="n">player</span><span class="p">,</span> <span class="n">l</span><span class="p">.</span><span class="n">name</span> <span class="k">as</span> <span class="n">name</span><span class="p">,</span> <span class="n">i</span><span class="p">.</span><span class="n">player</span><span class="o">-</span><span class="n">id</span> <span class="k">as</span> <span class="n">invited_players_player</span>
 </code></pre>
 </div>
+
+<p>to create the JdbcMapper just write the following code:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">JdbcMapper</span><span class="o">&lt;</span><span class="n">Location</span><span class="o">&gt;</span> <span class="n">jdbcMapper</span> <span class="o">=</span> 
     <span class="n">JdbcMapperFactory</span><span class="o">.</span><span class="na">addKeys</span><span class="o">(</span><span class="s">"player"</span><span class="o">).</span><span class="na">newMapper</span><span class="o">(</span><span class="n">Location</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
 </code></pre>
 </div>
+
+<p>The <code class="highlighter-rouge">Mapper</code> is thread-safe it is recommended to have only one instance per type, or type - columns for <a href="http://simpleflatmapper.org/0102-getting-started-jdbc.html#static-mapping">static mapper</a>.</p>
 
 <h2 id="execute-your-sqlquery-with-jooq">Execute your sqlQuery with jOOQ</h2>
 
@@ -147,7 +152,7 @@ I will skip on the resource closing code.</p>
 </code></pre>
 </div>
 
-<p>and here you go you will have a Stream of Location as describes in the original question.</p>
+<p>and here you go you will have a Stream of Location as describes in the original question. Simple.</p>
 
 <p>More information about <a href="http://simpleflatmapper.org/0203-joins.html">Sfm Joins</a>.</p>
 
