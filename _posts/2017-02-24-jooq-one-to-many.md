@@ -41,8 +41,9 @@ all we can get is 3 identical Location object with 1 invited player each.
 [join](http://simpleflatmapper.org/0203-joins.html) into the Location object.
  Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to do is
  instantiate a Sfm JdbcMapper and we will be sorted
- 
+
 ## Add [sfm-jdbc](http://search.maven.org/#artifactdetails|org.simpleflatmapper|sfm-jdbc|3.11.1|) as dependency
+
 
 ```xml
 <dependency>
