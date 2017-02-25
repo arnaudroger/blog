@@ -58,7 +58,7 @@ For join aggregation, Sfm needs to know what are the column representing the id 
 assuming the SQL Query would return the following fields
 
 ```sql
-p.player-id as player, l.name as name, i.player-id as invitedPlayers
+p.player-id as player, l.name as name, i.player-id as invitedPlayers_id
 ```
 
 
