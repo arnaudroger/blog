@@ -73,7 +73,9 @@ talking about jOOQ strength and weaknesses.</p>
   <p>After or before querying the database, the next question is: How do we go from database to objects and vice versa. And Hibernate et. al are really strong here. jOOQ has active records and yep, you can plug in stuff like objectmodelmapper, but mapping with jOOQ does not yet give you this “wow-effect” and feels clumsy at time. Try to get a more complex many-to-many relationship mapped and sooner or later you’ll end up writing some query DTOs and  continue mapping to other objects. This is actually one of our main gripes with jOOQ at the moment.</p>
 </blockquote>
 
-<p>As Lukas answered it is a deliberate choice, see <a href="https://github.com/jOOQ/jOOQ/issues/1530">Issue 1530</a> to let jOOQ focus on the query part.</p>
+<p>As Lukas answered it is a deliberate choice, see <a href="https://github.com/jOOQ/jOOQ/issues/1530">Issue 1530</a>. By design jOOQ is 
+very open to other <a href="https://www.jooq.org/doc/3.9/manual/sql-execution/fetching/pojos-with-recordmapper-provider/">mappers</a> allowing 
+other library to solves those problem.</p>
 
 <p>In this post, I will see how <a href="http://simpleflatmapper.org/">SimpleFlatMapper</a> can help filling jOOQ mapping gaps.</p>
 
