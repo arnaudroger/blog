@@ -1,20 +1,24 @@
 ---
 layout: post
-date: 2017-02-25
-title: jOOQ mapping one-to-many, many-to-many to POJO
+date: 2017-02-27
+title: Filling the one-to-many, many-to-many jOOQ mapping gap
 draft: false
 ---
 
-Marco Behler wrote [JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT)](https://www.marcobehler.com/2014/07/06/the-java-persistence-ghetto-and-how-jooq-might-change-that-2/)
+A few years ago Marco Behler wrote [JAVA PERSISTENCE GHETTO (AND HOW JOOQ MIGHT CHANGE THAT)](https://www.marcobehler.com/2014/07/06/the-java-persistence-ghetto-and-how-jooq-might-change-that-2/)
 talking about jOOQ strength and weaknesses. 
 
-The main pain point seems to be many to many mapping 
+One of the pain points he raised was many to many mapping:
 
 > 2. HOW DO I CONVERT BETWEEN DATABASE <--> OBJECTS?
 >  
 > After or before querying the database, the next question is: How do we go from database to objects and vice versa. And Hibernate et. al are really strong here. jOOQ has active records and yep, you can plug in stuff like objectmodelmapper, but mapping with jOOQ does not yet give you this "wow-effect" and feels clumsy at time. Try to get a more complex many-to-many relationship mapped and sooner or later you'll end up writing some query DTOs and  continue mapping to other objects. This is actually one of our main gripes with jOOQ at the moment.
 
-In this post, I will talk how [SimpleFlatMapper](http://simpleflatmapper.org/) can help solving jOOQ mapping issues.
+As Lukas answered it is a deliberate choice, see [Issue 1530](https://github.com/jOOQ/jOOQ/issues/1530). By design jOOQ is 
+very open to other [mappers](https://www.jooq.org/doc/3.9/manual/sql-execution/fetching/pojos-with-recordmapper-provider/) allowing 
+other libraries to solves those problems.
+
+In this post, I will see how [SimpleFlatMapper](http://simpleflatmapper.org/) can help filling jOOQ mapping gaps.
 
 ## StackOverflow
 
@@ -95,4 +99,8 @@ try (ResultSet rs =
 
 and here you go you will have a Stream of Location as describes in the original question. Simple.
 
-More information about [Sfm Joins](http://simpleflatmapper.org/0203-joins.html).
+More information :
+* [SimpleFlatMapper Joins](http://simpleflatmapper.org/0203-joins.html)
+* [SimpleFlatMapper Property Mapping](http://simpleflatmapper.org/0201-property-mapping.html)
+* [SimpleFlatMappper jOOQ integration](http://simpleflatmapper.org/0106-getting-started-jooq.html)
+* [SimpleFlatMapper JDBC Mapper](http://simpleflatmapper.org/0102-getting-started-jdbc.html)
