@@ -15,12 +15,12 @@ I played around and after enough shuffling the problem disappeared.
 I did not know why and did not have time/skills to really dig into it, it was good enough at the time. Problem solved.
 
 Last week I started to address some code duplication in the parser. And faced the same problem again.
-Eventually reduced the issue to a few line changes. Was reliable way to reproduce the different scenario
+Eventually reduced the issue to a few line changes. With a reliable way to reproduce the different scenario
 it became possible to investigate.
 
 # The puzzle
 
-I created a [githup repo](https://github.com/arnaudroger/sfm-csv-variability) to isolate the behavior and gather some data.
+I created a [GitHub repo](https://github.com/arnaudroger/sfm-csv-variability) to isolate the behaviour and gather some data.
 It uses a slightly simplified version of [sfm-csv](https://github.com/arnaudroger/SimpleFlatMapper/tree/master/sfm-csv)
 and the benchmarking code [mapping-benchmark](https://github.com/arnaudroger/mapping-benchmark/tree/master/sfm-csv).
 The benchmark will parse [a csv file](http://www.maxmind.com/download/worldcities/worldcitiespop.txt.gz), 
@@ -28,9 +28,9 @@ stores the cell in a String[] and pass that to the blackhole.
 
 There are two version of the parser 
 * [orig](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig) consistently fast.
-that gives consistantly [fast result](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v1-ref.txt) 
+that gives a consistantly [fast result](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v1-ref.txt) 
 * [alt](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/alt)
-that can give [result similar](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt) to [orig](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig)  or [slow results](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt).
+that can give [results similar](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt) to [orig](https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig)  or [slow results](https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt).
 
 ![avgt ms pie chart](/blog/images/20161030-perf-bar.png "orig : 701, alt fast : 705, alt slow : 1101")
 
@@ -103,7 +103,7 @@ The only thing left is to look at the generated asm. I printed two times 22 page
  
 # The expected asm
 
-If we look at the [asm generated](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt) by the orig code we can see the code that check if the char is a ',', '\r' or '\n'.
+If we look at the [asm generated](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt) by the orig code we can see the code that checks if the char is a ',', '\r' or '\n'.
 
 [Line starting at 78](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L78)
 {% highlight asm %}
@@ -130,7 +130,7 @@ If we look at the [asm generated](https://github.com/arnaudroger/sfm-csv-variabi
 ; - orig.CharConsumer::consumeAllBuffer@125 (line 58)
 {% endhighlight %}
 
-Then at [L0003](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L121), [L000c](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L403), or [L002d](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L1323) it create the string and push it to the array.
+Then at [L0003](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L121), [L000c](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L403), or [L002d](https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L1323) it creates the string and pushes it to the array.
 
 {% highlight asm %}
              L0003: mov 0x10(%r12,%r8,8),%r8d  ;*getfield mark
@@ -264,27 +264,27 @@ the only difference is the [bc/dependency declaration](https://github.com/arnaud
     <dependency x="857" ctxk="836" type="unique_concrete_method"/>
 {% endhighlight %}
 
-## why the alt fast case ?
+## why the alt fast case?
 
 endOfRow is not inline for the alt fast case. so the newCell is called only once in the isSeparator code path removing the
 "need" for placing some of it before the test.
 
-## why the alt slow case ?
+## why the alt slow case?
 
 That is the big question. And it probably would need more work here to figure it out but here are a few points
 * it happens only on TieredCompilation for that code
 * but a more simplified version I've quickly played with always run in slow mode even on C2 only.
 * it does not happen on java9 build 129 that I tested with. So it's either a known issue that is being fixed or that has been fixed by a side effect.
-* some of the heuristic might wrongly think there is a benefit to do that.
+* some of the heuristics might wrongly think there is a benefit to do that.
 
 # So what?
 
-It's hard to have lesson you can learn from that. the hack to force the fast past is not much of a problem here but it's 
+It's hard to extract something you can learn from. The hack to force the fast past is not much of a problem here but it's 
 weird to have to do that. If you have unstable performance you might have that kind of issue and then spent some time investigating
 the asm. But if you don't that does not mean the problem is not present...
 
 What pushed me to fix it was the conviction that the code should be faster that it was - comparing to jackson csv or univocity. 
-Having a good benchmark line to measure against or having decent expectation cqan help identifying those issues.
+Having a good benchmark line to measure against or having decent expectation can help identifying those issues.
 
 # How to reproduce
 

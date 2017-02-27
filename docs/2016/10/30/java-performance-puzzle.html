@@ -71,12 +71,12 @@ I played around and after enough shuffling the problem disappeared.
 I did not know why and did not have time/skills to really dig into it, it was good enough at the time. Problem solved.</p>
 
 <p>Last week I started to address some code duplication in the parser. And faced the same problem again.
-Eventually reduced the issue to a few line changes. Was reliable way to reproduce the different scenario
+Eventually reduced the issue to a few line changes. With a reliable way to reproduce the different scenario
 it became possible to investigate.</p>
 
 <h1 id="the-puzzle">The puzzle</h1>
 
-<p>I created a <a href="https://github.com/arnaudroger/sfm-csv-variability">githup repo</a> to isolate the behavior and gather some data.
+<p>I created a <a href="https://github.com/arnaudroger/sfm-csv-variability">GitHub repo</a> to isolate the behaviour and gather some data.
 It uses a slightly simplified version of <a href="https://github.com/arnaudroger/SimpleFlatMapper/tree/master/sfm-csv">sfm-csv</a>
 and the benchmarking code <a href="https://github.com/arnaudroger/mapping-benchmark/tree/master/sfm-csv">mapping-benchmark</a>.
 The benchmark will parse <a href="http://www.maxmind.com/download/worldcities/worldcitiespop.txt.gz">a csv file</a>, 
@@ -85,9 +85,9 @@ stores the cell in a String[] and pass that to the blackhole.</p>
 <p>There are two version of the parser</p>
 <ul>
   <li><a href="https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig">orig</a> consistently fast.
-that gives consistantly <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v1-ref.txt">fast result</a></li>
+that gives a consistantly <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v1-ref.txt">fast result</a></li>
   <li><a href="https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/alt">alt</a>
-that can give <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt">result similar</a> to <a href="https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig">orig</a>  or <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt">slow results</a>.</li>
+that can give <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-fast.txt">results similar</a> to <a href="https://github.com/arnaudroger/sfm-csv-variability/tree/master/src/main/java/org/github/arnaudroger/csv/orig">orig</a>  or <a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/jmh/perfasm-v2-slow.txt">slow results</a>.</li>
 </ul>
 
 <p><img src="/blog/images/20161030-perf-bar.png" alt="avgt ms pie chart" title="orig : 701, alt fast : 705, alt slow : 1101" /></p>
@@ -153,7 +153,7 @@ The only thing left is to look at the generated asm. I printed two times 22 page
 
 <h1 id="the-expected-asm">The expected asm</h1>
 
-<p>If we look at the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt">asm generated</a> by the orig code we can see the code that check if the char is a ‘,’, ‘\r’ or ‘\n’.</p>
+<p>If we look at the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt">asm generated</a> by the orig code we can see the code that checks if the char is a ‘,’, ‘\r’ or ‘\n’.</p>
 
 <p><a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L78">Line starting at 78</a></p>
 
@@ -179,7 +179,7 @@ The only thing left is to look at the generated asm. I printed two times 22 page
 0x00007f385d2371dc: je L002d  ;*if_icmpne
 ; - orig.CharConsumer::consumeAllBuffer@125 (line 58)</code></pre></figure>
 
-<p>Then at <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L121">L0003</a>, <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L403">L000c</a>, or <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L1323">L002d</a> it create the string and push it to the array.</p>
+<p>Then at <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L121">L0003</a>, <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L403">L000c</a>, or <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/jitwatch/asm-consumeAllBuffer-v1-ref.txt#L1323">L002d</a> it creates the string and pushes it to the array.</p>
 
 <figure class="highlight"><pre><code class="language-asm" data-lang="asm">             L0003: mov 0x10(%r12,%r8,8),%r8d  ;*getfield mark
                                                ; - orig.CharConsumer::newCell@6 (line 157)
@@ -304,29 +304,29 @@ the only difference is the <a href="https://github.com/arnaudroger/sfm-csv-varia
     <span class="nt">&lt;method</span> <span class="na">level=</span><span class="s">"4"</span> <span class="na">bytes=</span><span class="s">"52"</span> <span class="na">name=</span><span class="s">"pushCell"</span> <span class="na">flags=</span><span class="s">"20"</span> <span class="na">holder=</span><span class="s">"836"</span> <span class="na">arguments=</span><span class="s">"820 721 721 832"</span> <span class="na">id=</span><span class="s">"857"</span> <span class="na">compile_id=</span><span class="s">"450"</span> <span class="na">compiler=</span><span class="s">"C2"</span> <span class="na">iicount=</span><span class="s">"10919"</span> <span class="na">return=</span><span class="s">"723"</span><span class="nt">/&gt;</span>
     <span class="nt">&lt;dependency</span> <span class="na">x=</span><span class="s">"857"</span> <span class="na">ctxk=</span><span class="s">"836"</span> <span class="na">type=</span><span class="s">"unique_concrete_method"</span><span class="nt">/&gt;</span></code></pre></figure>
 
-<h2 id="why-the-alt-fast-case-">why the alt fast case ?</h2>
+<h2 id="why-the-alt-fast-case">why the alt fast case?</h2>
 
 <p>endOfRow is not inline for the alt fast case. so the newCell is called only once in the isSeparator code path removing the
 “need” for placing some of it before the test.</p>
 
-<h2 id="why-the-alt-slow-case-">why the alt slow case ?</h2>
+<h2 id="why-the-alt-slow-case">why the alt slow case?</h2>
 
 <p>That is the big question. And it probably would need more work here to figure it out but here are a few points</p>
 <ul>
   <li>it happens only on TieredCompilation for that code</li>
   <li>but a more simplified version I’ve quickly played with always run in slow mode even on C2 only.</li>
   <li>it does not happen on java9 build 129 that I tested with. So it’s either a known issue that is being fixed or that has been fixed by a side effect.</li>
-  <li>some of the heuristic might wrongly think there is a benefit to do that.</li>
+  <li>some of the heuristics might wrongly think there is a benefit to do that.</li>
 </ul>
 
 <h1 id="so-what">So what?</h1>
 
-<p>It’s hard to have lesson you can learn from that. the hack to force the fast past is not much of a problem here but it’s 
+<p>It’s hard to extract something you can learn from. The hack to force the fast past is not much of a problem here but it’s 
 weird to have to do that. If you have unstable performance you might have that kind of issue and then spent some time investigating
 the asm. But if you don’t that does not mean the problem is not present…</p>
 
 <p>What pushed me to fix it was the conviction that the code should be faster that it was - comparing to jackson csv or univocity. 
-Having a good benchmark line to measure against or having decent expectation cqan help identifying those issues.</p>
+Having a good benchmark line to measure against or having decent expectation can help identifying those issues.</p>
 
 <h1 id="how-to-reproduce">How to reproduce</h1>
 
