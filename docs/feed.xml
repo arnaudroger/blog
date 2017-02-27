@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 27 Feb 2017 09:58:03 +0000</pubDate>
-    <lastBuildDate>Mon, 27 Feb 2017 09:58:03 +0000</lastBuildDate>
+    <pubDate>Mon, 27 Feb 2017 09:58:41 +0000</pubDate>
+    <lastBuildDate>Mon, 27 Feb 2017 09:58:41 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -27,7 +27,7 @@ talking about jOOQ strength and weaknesses.&lt;/p&gt;
 
 &lt;p&gt;As Lukas answered it is a deliberate choice, see &lt;a href=&quot;https://github.com/jOOQ/jOOQ/issues/1530&quot;&gt;Issue 1530&lt;/a&gt;. By design jOOQ is 
 very open to other &lt;a href=&quot;https://www.jooq.org/doc/3.9/manual/sql-execution/fetching/pojos-with-recordmapper-provider/&quot;&gt;mappers&lt;/a&gt; allowing 
-other library to solves those problem.&lt;/p&gt;
+other libraries to solves those problems.&lt;/p&gt;
 
 &lt;p&gt;In this post, I will see how &lt;a href=&quot;http://simpleflatmapper.org/&quot;&gt;SimpleFlatMapper&lt;/a&gt; can help filling jOOQ mapping gaps.&lt;/p&gt;
 
