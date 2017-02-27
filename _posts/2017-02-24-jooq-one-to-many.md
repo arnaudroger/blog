@@ -75,11 +75,10 @@ The `Mapper` is thread-safe it is recommended to have only one instance per type
 
 ## Execute your sqlQuery with jOOQ
 
-all that's left is to execute the query, retrieve the `ResultSet` and use the jdbcMapper to fetch the result.
-I will skip on the resource closing code.
+For the break detection on the root object you need to order by the id of the root object, `.orderBy(LOCATION.PLAYER_ID)` here.
+Now we just need to execute the query, retrieve the `ResultSet` and use the jdbcMapper to map the rows to `Location` object.
 
 ```java
-
 try (ResultSet rs = 
         dsl
             .select(
@@ -89,12 +88,12 @@ try (ResultSet rs =
             .from(LOCATION)
                 .leftOuterJoin(LOCATION2PLAYER)
                     .on(LOCATION2PLAYER.LOCATION_ID.eq(LOCATION.LOCATION_ID))
+            .orderBy(LOCATION.PLAYER_ID)
             .fetchResultSet()) { 
     Stream<Location> stream = jdbcMapper.stream(rs);
     
     // do something on the stream.
 }
-
 ```
 
 and here you go you will have a Stream of Location as describes in the original question. Simple.

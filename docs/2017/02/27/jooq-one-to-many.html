@@ -134,11 +134,10 @@ Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to 
 
 <h2 id="execute-your-sqlquery-with-jooq">Execute your sqlQuery with jOOQ</h2>
 
-<p>all that’s left is to execute the query, retrieve the <code class="highlighter-rouge">ResultSet</code> and use the jdbcMapper to fetch the result.
-I will skip on the resource closing code.</p>
+<p>For the break detection on the root object you need to order by the id of the root object, <code class="highlighter-rouge">.orderBy(LOCATION.PLAYER_ID)</code> here.
+Now we just need to execute the query, retrieve the <code class="highlighter-rouge">ResultSet</code> and use the jdbcMapper to map the rows to <code class="highlighter-rouge">Location</code> object.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code>
-<span class="k">try</span> <span class="o">(</span><span class="n">ResultSet</span> <span class="n">rs</span> <span class="o">=</span> 
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span><span class="n">ResultSet</span> <span class="n">rs</span> <span class="o">=</span> 
         <span class="n">dsl</span>
             <span class="o">.</span><span class="na">select</span><span class="o">(</span>
                     <span class="n">LOCATION</span><span class="o">.</span><span class="na">NAME</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="s">"name"</span><span class="o">),</span> 
@@ -147,12 +146,12 @@ I will skip on the resource closing code.</p>
             <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">LOCATION</span><span class="o">)</span>
                 <span class="o">.</span><span class="na">leftOuterJoin</span><span class="o">(</span><span class="n">LOCATION2PLAYER</span><span class="o">)</span>
                     <span class="o">.</span><span class="na">on</span><span class="o">(</span><span class="n">LOCATION2PLAYER</span><span class="o">.</span><span class="na">LOCATION_ID</span><span class="o">.</span><span class="na">eq</span><span class="o">(</span><span class="n">LOCATION</span><span class="o">.</span><span class="na">LOCATION_ID</span><span class="o">))</span>
+            <span class="o">.</span><span class="na">orderBy</span><span class="o">(</span><span class="n">LOCATION</span><span class="o">.</span><span class="na">PLAYER_ID</span><span class="o">)</span>
             <span class="o">.</span><span class="na">fetchResultSet</span><span class="o">())</span> <span class="o">{</span> 
     <span class="n">Stream</span><span class="o">&lt;</span><span class="n">Location</span><span class="o">&gt;</span> <span class="n">stream</span> <span class="o">=</span> <span class="n">jdbcMapper</span><span class="o">.</span><span class="na">stream</span><span class="o">(</span><span class="n">rs</span><span class="o">);</span>
     
     <span class="c1">// do something on the stream.</span>
 <span class="o">}</span>
-
 </code></pre>
 </div>
 
