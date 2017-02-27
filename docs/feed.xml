@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 27 Feb 2017 09:59:22 +0000</pubDate>
-    <lastBuildDate>Mon, 27 Feb 2017 09:59:22 +0000</lastBuildDate>
+    <pubDate>Mon, 27 Feb 2017 10:01:48 +0000</pubDate>
+    <lastBuildDate>Mon, 27 Feb 2017 10:01:48 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -110,7 +110,13 @@ I will skip on the resource closing code.&lt;/p&gt;
 
 &lt;p&gt;and here you go you will have a Stream of Location as describes in the original question. Simple.&lt;/p&gt;
 
-&lt;p&gt;More information about &lt;a href=&quot;http://simpleflatmapper.org/0203-joins.html&quot;&gt;Sfm Joins&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;More information :&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://simpleflatmapper.org/0203-joins.html&quot;&gt;SimpleFlatMapper Joins&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://simpleflatmapper.org/0201-property-mapping.html&quot;&gt;SimpleFlatMapper Property Mapping&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://simpleflatmapper.org/0106-getting-started-jooq.html&quot;&gt;SimpleFlatMappper jOOQ integration&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://simpleflatmapper.org/0102-getting-started-jdbc.html&quot;&gt;SimpleFlatMapper JDBC Mapper&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
 </description>
         <pubDate>Mon, 27 Feb 2017 00:00:00 +0000</pubDate>
         <link>http://arnaudroger.github.io/blog/2017/02/27/jooq-one-to-many.html</link>
