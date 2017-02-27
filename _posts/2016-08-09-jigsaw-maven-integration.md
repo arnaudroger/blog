@@ -21,6 +21,11 @@ To run the test with mockito
 </plugin>
 ```
 
+all the 
+`-XaddExports:java.base/sun.nio.ch=ALL-UNNAMED`
+should now be replaced by 
+`--add-opens java.base/sun.nio.ch=ALL-UNNAMED`
+
 # Update 2nd of November 2016
 
 the Maven plugin 3.6.0 has been officially release with jigsaw support.
@@ -30,6 +35,7 @@ seems that the test might need a module-info.java.
 
 Will update when I have more info.
 
+Also note that 
 
 
 

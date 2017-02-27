@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 27 Feb 2017 10:50:28 +0000</pubDate>
-    <lastBuildDate>Mon, 27 Feb 2017 10:50:28 +0000</lastBuildDate>
+    <pubDate>Mon, 27 Feb 2017 16:08:31 +0000</pubDate>
+    <lastBuildDate>Mon, 27 Feb 2017 16:08:31 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -652,6 +652,11 @@ seems to be some cglib access, there should be a way to open the package if I kn
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 
+&lt;p&gt;all the 
+&lt;code class=&quot;highlighter-rouge&quot;&gt;-XaddExports:java.base/sun.nio.ch=ALL-UNNAMED&lt;/code&gt;
+should now be replaced by 
+&lt;code class=&quot;highlighter-rouge&quot;&gt;--add-opens java.base/sun.nio.ch=ALL-UNNAMED&lt;/code&gt;&lt;/p&gt;
+
 &lt;h1 id=&quot;update-2nd-of-november-2016&quot;&gt;Update 2nd of November 2016&lt;/h1&gt;
 
 &lt;p&gt;the Maven plugin 3.6.0 has been officially release with jigsaw support.&lt;/p&gt;
@@ -660,6 +665,8 @@ seems to be some cglib access, there should be a way to open the package if I kn
 seems that the test might need a module-info.java.&lt;/p&gt;
 
 &lt;p&gt;Will update when I have more info.&lt;/p&gt;
+
+&lt;p&gt;Also note that&lt;/p&gt;
 
 &lt;h1 id=&quot;maven-building-java-9-ea-with-jigsaw&quot;&gt;Maven building java 9-ea with jigsaw&lt;/h1&gt;
 

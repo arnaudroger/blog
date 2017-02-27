@@ -78,6 +78,11 @@ seems to be some cglib access, there should be a way to open the package if I kn
 </code></pre>
 </div>
 
+<p>all the 
+<code class="highlighter-rouge">-XaddExports:java.base/sun.nio.ch=ALL-UNNAMED</code>
+should now be replaced by 
+<code class="highlighter-rouge">--add-opens java.base/sun.nio.ch=ALL-UNNAMED</code></p>
+
 <h1 id="update-2nd-of-november-2016">Update 2nd of November 2016</h1>
 
 <p>the Maven plugin 3.6.0 has been officially release with jigsaw support.</p>
@@ -86,6 +91,8 @@ seems to be some cglib access, there should be a way to open the package if I kn
 seems that the test might need a module-info.java.</p>
 
 <p>Will update when I have more info.</p>
+
+<p>Also note that</p>
 
 <h1 id="maven-building-java-9-ea-with-jigsaw">Maven building java 9-ea with jigsaw</h1>
 
