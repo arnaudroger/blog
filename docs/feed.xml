@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 28 Feb 2017 07:13:31 +0000</pubDate>
-    <lastBuildDate>Tue, 28 Feb 2017 07:13:31 +0000</lastBuildDate>
+    <pubDate>Tue, 28 Feb 2017 09:57:22 +0000</pubDate>
+    <lastBuildDate>Tue, 28 Feb 2017 09:57:22 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -639,6 +639,10 @@ the asm. But if you don’t that does not mean the problem is not present…&lt;
 
 &lt;p&gt;What pushed me to fix it was the conviction that the code should be faster that it was - comparing to jackson csv or univocity. 
 Having a good benchmark line to measure against or having decent expectation can help identifying those issues.&lt;/p&gt;
+
+&lt;h1 id=&quot;updates-see-follow-post&quot;&gt;Updates see follow post&lt;/h1&gt;
+
+&lt;p&gt;&lt;a href=&quot;/blog/2017/02/28/java-performance-puzzle-part2.html&quot;&gt;Java Performance Puzzle Part2&lt;/a&gt;&lt;/p&gt;
 
 &lt;h1 id=&quot;how-to-reproduce&quot;&gt;How to reproduce&lt;/h1&gt;
 

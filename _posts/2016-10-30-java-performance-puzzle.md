@@ -286,6 +286,11 @@ the asm. But if you don't that does not mean the problem is not present...
 What pushed me to fix it was the conviction that the code should be faster that it was - comparing to jackson csv or univocity. 
 Having a good benchmark line to measure against or having decent expectation can help identifying those issues.
 
+
+# Updates see follow post
+
+[Java Performance Puzzle Part2](/blog/2017/02/28/java-performance-puzzle-part2.html)
+
 # How to reproduce
 
 {% highlight bash %}
@@ -315,3 +320,5 @@ java -jar target/benchmarks.jar Csv2Ben -f 1 -jvmArgs "-XX:+UnlockDiagnosticVMOp
 
  
 {% endhighlight %}
+
+
