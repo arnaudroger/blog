@@ -5,9 +5,253 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 27 Feb 2017 17:11:17 +0000</pubDate>
-    <lastBuildDate>Mon, 27 Feb 2017 17:11:17 +0000</lastBuildDate>
+    <pubDate>Tue, 28 Feb 2017 07:13:31 +0000</pubDate>
+    <lastBuildDate>Tue, 28 Feb 2017 07:13:31 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
+    
+    
+      <item>
+        <title>Java Performance Puzzle Part2</title>
+        <description>&lt;p&gt;This post is a follow-up to &lt;a href=&quot;/2016/10/30/java-performance-puzzle.html&quot;&gt;Java Performance Puzzle&lt;/a&gt; in which a small code change
+leads to a counter-intuitive performance gain.&lt;/p&gt;
+
+&lt;h1 id=&quot;simplified-case&quot;&gt;Simplified case&lt;/h1&gt;
+
+&lt;p&gt;In the previous post, the benchmark was based on the code from my &lt;a href=&quot;http://simpleflatmapper.org/0101-getting-started-csv.html&quot;&gt;CSV parser&lt;/a&gt;
+with all the logic to deal with unescaping, the cell aggregation etc …&lt;/p&gt;
+
+&lt;h2 id=&quot;simplified-for-loop&quot;&gt;simplified for-loop&lt;/h2&gt;
+
+&lt;p&gt;I managed to reduce the code to a simpler naive CSV parser. see &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/src/main/java/org/github/arnaudroger/SimplifiedBenchmark.java&quot;&gt;SimplifiedBenchmark.java&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;We now have a tight loop with 2 conditions in which with extract the &lt;code class=&quot;highlighter-rouge&quot;&gt;char[]&lt;/code&gt;, accumulate it in an array and pass the array 
+to the &lt;code class=&quot;highlighter-rouge&quot;&gt;Blackhole&lt;/code&gt; when encountering &lt;code class=&quot;highlighter-rouge&quot;&gt;'\n'&lt;/code&gt;.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;    &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;benchmarkDirect&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CsvContent&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;csvContent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Blackhole&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;// snip ...&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;sc&quot;&gt;','&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;cells&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cellIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;copyOfRange&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;sc&quot;&gt;'\n'&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;cells&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cellIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;copyOfRange&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;consume&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cells&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;cellIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;benchmarkHolder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CsvContent&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;csvContent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Blackhole&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;// snip ...&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;sc&quot;&gt;','&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;holder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;cells&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cellIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;copyOfRange&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;holder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;sc&quot;&gt;'\n'&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;holder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;cells&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cellIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;copyOfRange&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;holder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;consume&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cells&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;cellIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Holder&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;holder&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Holder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Holder&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;That still exhibit the weird behavior, the holder make it go faster.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-txt&quot; data-lang=&quot;txt&quot;&gt; Benchmark                           (nbCellsPerRow)  (nbRows)    Mode  Cnt    Score   Error  Units
+ SimplifiedBenchmark.benchmarkDirect 10    500000  sample  242  233.642 ± 9.727  ms/op
+ SimplifiedBenchmark.benchmarkHolder 10    500000  sample  327  169.661 ± 5.611  ms/op&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Which is pretty good. We can see some of the logic of &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified/asm-direct.txt#L99&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;copyOfRange&lt;/code&gt;&lt;/a&gt; being put outside the &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified/asm-direct.txt#L142&quot;&gt;condition check&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;But the code is still quite complex to reason with. Does the loop matters? Is it just the if conditions.&lt;/p&gt;
+
+&lt;h2 id=&quot;isolate-if-condition&quot;&gt;isolate if condition&lt;/h2&gt;
+
+&lt;p&gt;So next I wrote a version that isolates the if condition in a non-inlinable method. I also inline the char copy to make it easier for analysis.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;   &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;benchmarkDirect&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CsvContent&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;csvContent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Blackhole&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;csvContent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nextCharDirect&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;nextCharDirect&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Blackhole&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;sc&quot;&gt;','&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;consume&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;sc&quot;&gt;'\n'&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;blackhole&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;consume&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;            
+            &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;currentIndex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;startCell&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;the difference is not as striking there. one of the reason is that the copy logic is a lot simpler there is less code &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L45&quot;&gt;the sub here&lt;/a&gt; and some &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L60&quot;&gt;array instantiation preparation&lt;/a&gt;&lt;br /&gt;
+being put outside the &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L64&quot;&gt;if&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;But we still have the effect of having some code that should only execute conditionally being executed for each char.&lt;/p&gt;
+
+&lt;p&gt;Where do we go from there? we can see what happens but why would that be the case.&lt;/p&gt;
+
+&lt;h1 id=&quot;everything-is-an-illusion&quot;&gt;Everything is an illusion&lt;/h1&gt;
+
+&lt;p&gt;The JIT can make a lot of optimisation, code that doesn’t need to be executed will be strip away, loops get unrolled, 
+condition order changed depending on profiling stats.
+The ASM generated may look very different from your bytecode as long as the outcome is the same as the original code.
+That allows for a lot of optimisation to happens.&lt;/p&gt;
+
+&lt;p&gt;The JIT looks at the code in the form of an Abstract Syntax Tree and applies a list of transformation before generating 
+the final machine code.
+And fortunately, there is a way to get an insight into what is happening (ht Jean-Philippe Bempel) with &lt;a href=&quot;http://ssw.jku.at/General/Staff/TW/igv.html&quot;&gt;Ideal Graph Visualizer&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Unfortunately to be able to use that you need to build a debug version of OpenJDK.&lt;/p&gt;
+
+&lt;h2 id=&quot;building-openjdk&quot;&gt;Building OpenJDK&lt;/h2&gt;
+
+&lt;p&gt;To build OpenJDK you will need a Linux box, on MacOsX it relies on an old version of Xcode that is not supported with Sierra.&lt;/p&gt;
+
+&lt;p&gt;Also, beware to not have a &lt;code class=&quot;highlighter-rouge&quot;&gt;j&lt;/code&gt; in the name the path of the directories you are checking it out - avoid opendjdk  -.&lt;/p&gt;
+
+&lt;p&gt;you will need JDK 1.7 to build it, it is also needed to launch ideal graph visualizer.&lt;/p&gt;
+
+&lt;p&gt;Make sure that you have a gcc 4.3 to 4.9 installed as it will fail with gcc 5 &lt;a href=&quot;http://askubuntu.com/questions/26498/choose-gcc-and-g-version/26518#26518&quot;&gt;for ubuntu&lt;/a&gt;.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;hg clone http://hg.openjdk.java.net/jdk8/jdk8 open_dk
+&lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;open_dk
+bash ./get_sources
+bash configure --enable-debug --enable-openjdk-only --with-java-variants&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;server --disable-headful
+&lt;span class=&quot;c&quot;&gt;# check that Boot JDK points to 1.7 and C and C++ compiler to Gcc 4.9&lt;/span&gt;
+make all&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;if it fails to check the os_versions because you are running a 4.x kernel 
+append 4% to the SUPPORTED_OS_VERSION in hotspot/make/linux/Makefile&lt;/p&gt;
+
+&lt;p&gt;You might need to install a few libraries… but once make all succeed you have 
+your vm in build/&lt;/p&gt;
+
+&lt;h2 id=&quot;ideal-graph-visualizer&quot;&gt;Ideal Graph Visualizer&lt;/h2&gt;
+
+&lt;p&gt;Now we need to start Ideal Graph Visualizer&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;wget http://ssw.jku.at/General/Staff/PH/igv_latest.zip
+unzip igv_latest.zip
+&lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;idealgraphvisualizer
+bin/idealgraphvisualizer --jdkhome&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;/usr/lib/jvm/java-7-oracle&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;and run the benchmark with the debug JVM&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;java -jar target/benchmarks.jar  SimplifiedBenchmark2.benchmarkDirect -f 1 -i 10 -wi 10 -bm avgt -tu ms -jvm /home/aroger/dev/dev8/build/linux-x86_64-normal-server-fastdebug/jdk/bin/java -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:PrintIdealGraphLevel=3&quot;&lt;/span&gt;
+java -jar target/benchmarks.jar  SimplifiedBenchmark2.benchmarkHolder -f 1 -i 10 -wi 10 -bm avgt -tu ms -jvm /home/aroger/dev/dev8/build/linux-x86_64-normal-server-fastdebug/jdk/bin/java -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:PrintIdealGraphLevel=3&quot;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;the JVM might not be that stable and fail sometimes it should eventually run the benchmark successfully 
+and you should see the nodes information being pushed to Ideal Graph Visualizer.&lt;/p&gt;
+
+&lt;p&gt;you can also export the data to a file using &lt;code class=&quot;highlighter-rouge&quot;&gt;-XX:PrintIdealGraphFile=file.xml&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;nextcharholder-graph&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;nextCharHolder&lt;/code&gt; graph&lt;/h2&gt;
+
+&lt;p&gt;Let’s start by looking at the graph for the one with the holder.&lt;/p&gt;
+
+&lt;p&gt;If you look at ASM for the direct you see the &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L45&quot;&gt;length calculation&lt;/a&gt;
+being done before the &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L64&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;','&lt;/code&gt; check&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;That &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-holder.txt#L58&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;sub&lt;/code&gt;&lt;/a&gt; is done after the &lt;a href=&quot;https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-holder.txt#L49&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt;&lt;/a&gt;
+in the holder version.&lt;/p&gt;
+
+&lt;p&gt;If we isolate the &lt;code class=&quot;highlighter-rouge&quot;&gt;sub&lt;/code&gt; in the graph we can see that it depends on the &lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt; check.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-before-2c-sub.png&quot; alt=&quot;holder 2c sub&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Same for the &lt;code class=&quot;highlighter-rouge&quot;&gt;sub&lt;/code&gt; in the second condition&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-before-0a-sub.png&quot; alt=&quot;holder 0a sub&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;That stays true after the &lt;code class=&quot;highlighter-rouge&quot;&gt;RemoveUseless&lt;/code&gt; in the &lt;code class=&quot;highlighter-rouge&quot;&gt;AfterParsing&lt;/code&gt; stage
+see the following graphs.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-after-0a-sub.png&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;','&lt;/code&gt; tree&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-after-2c-sub.png&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;'\n'&lt;/code&gt; tree&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;nextchardirect-graph&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;nextCharDirect&lt;/code&gt; graph&lt;/h2&gt;
+
+&lt;p&gt;But in the direct call we can see the 2 &lt;code class=&quot;highlighter-rouge&quot;&gt;sub&lt;/code&gt;s in the &lt;code class=&quot;highlighter-rouge&quot;&gt;Before RemoveUseless&lt;/code&gt; stage
+there is no dependency on the &lt;code class=&quot;highlighter-rouge&quot;&gt;If&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;for the &lt;code class=&quot;highlighter-rouge&quot;&gt;','&lt;/code&gt;
+&lt;img src=&quot;https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-before-2c-sub.png&quot; alt=&quot;direct 2c sub&quot; /&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;or the &lt;code class=&quot;highlighter-rouge&quot;&gt;'\n'&lt;/code&gt;&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-before-0a-sub.png&quot; alt=&quot;direct 0a sub&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;And at the &lt;code class=&quot;highlighter-rouge&quot;&gt;AfterParsing&lt;/code&gt; stage, there is only one &lt;code class=&quot;highlighter-rouge&quot;&gt;Sub&lt;/code&gt; left&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-after-2c_0a-sub.png&quot; alt=&quot;direct-after-2c_0a-sub&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The allocated array depends on the &lt;code class=&quot;highlighter-rouge&quot;&gt;Sub&lt;/code&gt; and on the &lt;code class=&quot;highlighter-rouge&quot;&gt;If&lt;/code&gt;, but the &lt;code class=&quot;highlighter-rouge&quot;&gt;Sub&lt;/code&gt; does not depend on the &lt;code class=&quot;highlighter-rouge&quot;&gt;If&lt;/code&gt;.
+Which can explain why it is pushed outside the &lt;code class=&quot;highlighter-rouge&quot;&gt;If&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h1 id=&quot;what-does-that-mean&quot;&gt;What does that mean?&lt;/h1&gt;
+
+&lt;p&gt;Because the &lt;code class=&quot;highlighter-rouge&quot;&gt;sub&lt;/code&gt; does not depend on the &lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt; in the direct call in the &lt;code class=&quot;highlighter-rouge&quot;&gt;RemoveUseless&lt;/code&gt; stage and does not have any side effect
+the code get consolidate in one place and is generated outside the if.
+The holder stops that by creating a dependency on the &lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt;. Why does it create a dependency on the &lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt;?
+I don’t know yet.&lt;/p&gt;
+
+&lt;h1 id=&quot;when-is-it-a-problem&quot;&gt;When is it a problem?&lt;/h1&gt;
+
+&lt;p&gt;If you have a 2 or more test that contains duplicated code with no side effect, that code might 
+end up being executed outside the if.&lt;/p&gt;
+
+&lt;p&gt;Depending on the condition ratio and how many time the &lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt; is called, the impact might start to dominate as it does in my 
+CSV parser. Most of the time the condition are false and the code inside should not be executed but some of it is.&lt;/p&gt;
+
+&lt;h1 id=&quot;what-next&quot;&gt;What next?&lt;/h1&gt;
+
+&lt;p&gt;I would really like to understand why &lt;code class=&quot;highlighter-rouge&quot;&gt;SubI&lt;/code&gt; does not depend on &lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt; but when adding an indirection it does.
+How does the RemoveUseless work? should the code with no side effect still be marked as depending on the &lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt;.
+The only place to go from there is to dig in the hotspot code … and experiment in will
+hopefully be part 3.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 28 Feb 2017 00:00:00 +0000</pubDate>
+        <link>http://arnaudroger.github.io/blog/2017/02/28/java-performance-puzzle-part2.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2017/02/28/java-performance-puzzle-part2.html</guid>
+        
+        
+      </item>
+    
     
     
       <item>

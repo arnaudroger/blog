@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Java Performance Puzzle Part2</title>
+  <meta name="description" content="This post is a follow-up to Java Performance Puzzle in which a small code change leads to a counter-intuitive performance gain.">
+
+  <link rel="stylesheet" href="/blog/assets/main.css">
+  <link rel="canonical" href="http://arnaudroger.github.io/blog/2017/02/28/java-performance-puzzle-part2.html">
+  <link rel="alternate" type="application/rss+xml" title="Eat Sleep Code Repeat." href="/blog/feed.xml">
+  
+  
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/blog/">Eat Sleep Code Repeat.</a>
+
+    <nav class="site-nav">
+      <span class="menu-icon">
+        <svg viewBox="0 0 18 15" width="18px" height="15px">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </span>
+
+      <div class="trigger">
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+    <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">Java Performance Puzzle Part2</h1>
+        <p class="post-meta"><time datetime="2017-02-28T00:00:00+00:00" itemprop="datePublished">Feb 28, 2017</time></p>
+    </header>
+
+    <div class="post-content" itemprop="articleBody">
+        <p>This post is a follow-up to <a href="/2016/10/30/java-performance-puzzle.html">Java Performance Puzzle</a> in which a small code change
+leads to a counter-intuitive performance gain.</p>
+
+<h1 id="simplified-case">Simplified case</h1>
+
+<p>In the previous post, the benchmark was based on the code from my <a href="http://simpleflatmapper.org/0101-getting-started-csv.html">CSV parser</a>
+with all the logic to deal with unescaping, the cell aggregation etc …</p>
+
+<h2 id="simplified-for-loop">simplified for-loop</h2>
+
+<p>I managed to reduce the code to a simpler naive CSV parser. see <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/src/main/java/org/github/arnaudroger/SimplifiedBenchmark.java">SimplifiedBenchmark.java</a></p>
+
+<p>We now have a tight loop with 2 conditions in which with extract the <code class="highlighter-rouge">char[]</code>, accumulate it in an array and pass the array 
+to the <code class="highlighter-rouge">Blackhole</code> when encountering <code class="highlighter-rouge">'\n'</code>.</p>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java">    <span class="nd">@Benchmark</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">benchmarkDirect</span><span class="o">(</span><span class="n">CsvContent</span> <span class="n">csvContent</span><span class="o">,</span> <span class="n">Blackhole</span> <span class="n">blackhole</span><span class="o">)</span> <span class="o">{</span>
+        <span class="c1">// snip ...</span>
+        <span class="k">for</span><span class="o">(</span><span class="kt">int</span> <span class="n">currentIndex</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>  <span class="n">currentIndex</span> <span class="o">&lt;</span> <span class="n">content</span><span class="o">.</span><span class="na">length</span><span class="o">;</span> <span class="n">currentIndex</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="kt">char</span> <span class="n">c</span> <span class="o">=</span> <span class="n">content</span><span class="o">[</span><span class="n">currentIndex</span><span class="o">];</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">c</span> <span class="o">==</span> <span class="sc">','</span><span class="o">)</span> <span class="o">{</span>
+                <span class="n">cells</span><span class="o">[</span><span class="n">cellIndex</span><span class="o">++]</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">copyOfRange</span><span class="o">(</span><span class="n">content</span><span class="o">,</span> <span class="n">startCell</span><span class="o">,</span> <span class="n">currentIndex</span><span class="o">);</span>
+                <span class="n">startCell</span> <span class="o">=</span> <span class="n">currentIndex</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+            <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">c</span> <span class="o">==</span> <span class="sc">'\n'</span><span class="o">)</span> <span class="o">{</span>
+                <span class="n">cells</span><span class="o">[</span><span class="n">cellIndex</span><span class="o">++]</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">copyOfRange</span><span class="o">(</span><span class="n">content</span><span class="o">,</span> <span class="n">startCell</span><span class="o">,</span> <span class="n">currentIndex</span><span class="o">);</span>
+                <span class="n">startCell</span> <span class="o">=</span> <span class="n">currentIndex</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+                <span class="n">blackhole</span><span class="o">.</span><span class="na">consume</span><span class="o">(</span><span class="n">cells</span><span class="o">);</span>
+                <span class="n">cellIndex</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Benchmark</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">benchmarkHolder</span><span class="o">(</span><span class="n">CsvContent</span> <span class="n">csvContent</span><span class="o">,</span> <span class="n">Blackhole</span> <span class="n">blackhole</span><span class="o">)</span> <span class="o">{</span>
+        <span class="c1">// snip ...</span>
+        <span class="k">for</span><span class="o">(</span><span class="kt">int</span> <span class="n">currentIndex</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>  <span class="n">currentIndex</span> <span class="o">&lt;</span> <span class="n">content</span><span class="o">.</span><span class="na">length</span><span class="o">;</span> <span class="n">currentIndex</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="kt">char</span> <span class="n">c</span> <span class="o">=</span> <span class="n">content</span><span class="o">[</span><span class="n">currentIndex</span><span class="o">];</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">c</span> <span class="o">==</span> <span class="sc">','</span><span class="o">)</span> <span class="o">{</span>
+                <span class="kt">int</span> <span class="n">startCell</span> <span class="o">=</span> <span class="n">holder</span><span class="o">.</span><span class="na">startCell</span><span class="o">;</span>
+                <span class="n">cells</span><span class="o">[</span><span class="n">cellIndex</span><span class="o">++]</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">copyOfRange</span><span class="o">(</span><span class="n">content</span><span class="o">,</span> <span class="n">startCell</span><span class="o">,</span> <span class="n">currentIndex</span><span class="o">);</span>
+                <span class="n">holder</span><span class="o">.</span><span class="na">startCell</span> <span class="o">=</span> <span class="n">currentIndex</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+            <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">c</span> <span class="o">==</span> <span class="sc">'\n'</span><span class="o">)</span> <span class="o">{</span>
+                <span class="kt">int</span> <span class="n">startCell</span> <span class="o">=</span> <span class="n">holder</span><span class="o">.</span><span class="na">startCell</span><span class="o">;</span>
+                <span class="n">cells</span><span class="o">[</span><span class="n">cellIndex</span><span class="o">++]</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">copyOfRange</span><span class="o">(</span><span class="n">content</span><span class="o">,</span> <span class="n">startCell</span><span class="o">,</span> <span class="n">currentIndex</span><span class="o">);</span>
+                <span class="n">holder</span><span class="o">.</span><span class="na">startCell</span> <span class="o">=</span> <span class="n">currentIndex</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+                <span class="n">blackhole</span><span class="o">.</span><span class="na">consume</span><span class="o">(</span><span class="n">cells</span><span class="o">);</span>
+                <span class="n">cellIndex</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+    <span class="kd">private</span> <span class="n">Holder</span> <span class="n">holder</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Holder</span><span class="o">();</span>
+    <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Holder</span>  <span class="o">{</span>
+        <span class="kt">int</span> <span class="n">startCell</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+    <span class="o">}</span></code></pre></figure>
+
+<p>That still exhibit the weird behavior, the holder make it go faster.</p>
+
+<figure class="highlight"><pre><code class="language-txt" data-lang="txt"> Benchmark                           (nbCellsPerRow)  (nbRows)    Mode  Cnt    Score   Error  Units
+ SimplifiedBenchmark.benchmarkDirect 10    500000  sample  242  233.642 ± 9.727  ms/op
+ SimplifiedBenchmark.benchmarkHolder 10    500000  sample  327  169.661 ± 5.611  ms/op</code></pre></figure>
+
+<p>Which is pretty good. We can see some of the logic of <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified/asm-direct.txt#L99"><code class="highlighter-rouge">copyOfRange</code></a> being put outside the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified/asm-direct.txt#L142">condition check</a>.</p>
+
+<p>But the code is still quite complex to reason with. Does the loop matters? Is it just the if conditions.</p>
+
+<h2 id="isolate-if-condition">isolate if condition</h2>
+
+<p>So next I wrote a version that isolates the if condition in a non-inlinable method. I also inline the char copy to make it easier for analysis.</p>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java">   <span class="nd">@Benchmark</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">benchmarkDirect</span><span class="o">(</span><span class="n">CsvContent</span> <span class="n">csvContent</span><span class="o">,</span> <span class="n">Blackhole</span> <span class="n">blackhole</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kt">char</span><span class="o">[]</span> <span class="n">content</span> <span class="o">=</span> <span class="n">csvContent</span><span class="o">.</span><span class="na">content</span><span class="o">;</span>
+        <span class="kt">int</span> <span class="n">startCell</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+        <span class="k">for</span><span class="o">(</span><span class="kt">int</span> <span class="n">currentIndex</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>  <span class="n">currentIndex</span> <span class="o">&lt;</span> <span class="n">content</span><span class="o">.</span><span class="na">length</span><span class="o">;</span> <span class="n">currentIndex</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="n">startCell</span> <span class="o">=</span> <span class="n">nextCharDirect</span><span class="o">(</span><span class="n">blackhole</span><span class="o">,</span> <span class="n">content</span><span class="o">,</span> <span class="n">startCell</span><span class="o">,</span> <span class="n">currentIndex</span><span class="o">);</span>
+        <span class="o">}</span>
+
+    <span class="o">}</span>
+
+    <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+    <span class="kd">private</span> <span class="kt">int</span> <span class="nf">nextCharDirect</span><span class="o">(</span><span class="n">Blackhole</span> <span class="n">blackhole</span><span class="o">,</span> <span class="kt">char</span><span class="o">[]</span> <span class="n">content</span><span class="o">,</span> <span class="kt">int</span> <span class="n">startCell</span><span class="o">,</span> <span class="kt">int</span> <span class="n">currentIndex</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kt">char</span> <span class="n">c</span> <span class="o">=</span> <span class="n">content</span><span class="o">[</span><span class="n">currentIndex</span><span class="o">];</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">c</span> <span class="o">==</span> <span class="sc">','</span><span class="o">)</span> <span class="o">{</span>
+            <span class="kt">char</span><span class="o">[]</span> <span class="n">chars</span> <span class="o">=</span> <span class="k">new</span> <span class="kt">char</span><span class="o">[</span><span class="n">currentIndex</span> <span class="o">-</span> <span class="n">startCell</span><span class="o">];</span>
+            <span class="k">for</span><span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">chars</span><span class="o">.</span><span class="na">length</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+                <span class="n">chars</span><span class="o">[</span><span class="n">i</span><span class="o">]</span> <span class="o">=</span> <span class="n">content</span><span class="o">[</span><span class="n">i</span> <span class="o">+</span> <span class="n">startCell</span><span class="o">];</span>
+            <span class="o">}</span>
+            <span class="n">blackhole</span><span class="o">.</span><span class="na">consume</span><span class="o">(</span><span class="n">chars</span><span class="o">);</span>
+            <span class="n">startCell</span> <span class="o">=</span> <span class="n">currentIndex</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">c</span> <span class="o">==</span> <span class="sc">'\n'</span><span class="o">)</span> <span class="o">{</span>
+            <span class="kt">char</span><span class="o">[]</span> <span class="n">chars</span> <span class="o">=</span> <span class="k">new</span> <span class="kt">char</span><span class="o">[</span><span class="n">currentIndex</span> <span class="o">-</span> <span class="n">startCell</span><span class="o">];</span>
+            <span class="k">for</span><span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">chars</span><span class="o">.</span><span class="na">length</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+                <span class="n">chars</span><span class="o">[</span><span class="n">i</span><span class="o">]</span> <span class="o">=</span> <span class="n">content</span><span class="o">[</span><span class="n">i</span> <span class="o">+</span> <span class="n">startCell</span><span class="o">];</span>
+            <span class="o">}</span>
+            <span class="n">blackhole</span><span class="o">.</span><span class="na">consume</span><span class="o">(</span><span class="n">chars</span><span class="o">);</span>            
+            <span class="n">startCell</span> <span class="o">=</span> <span class="n">currentIndex</span> <span class="o">+</span> <span class="mi">1</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="n">startCell</span><span class="o">;</span>
+    <span class="o">}</span></code></pre></figure>
+
+<p>the difference is not as striking there. one of the reason is that the copy logic is a lot simpler there is less code <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L45">the sub here</a> and some <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L60">array instantiation preparation</a><br />
+being put outside the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L64">if</a>.</p>
+
+<p>But we still have the effect of having some code that should only execute conditionally being executed for each char.</p>
+
+<p>Where do we go from there? we can see what happens but why would that be the case.</p>
+
+<h1 id="everything-is-an-illusion">Everything is an illusion</h1>
+
+<p>The JIT can make a lot of optimisation, code that doesn’t need to be executed will be strip away, loops get unrolled, 
+condition order changed depending on profiling stats.
+The ASM generated may look very different from your bytecode as long as the outcome is the same as the original code.
+That allows for a lot of optimisation to happens.</p>
+
+<p>The JIT looks at the code in the form of an Abstract Syntax Tree and applies a list of transformation before generating 
+the final machine code.
+And fortunately, there is a way to get an insight into what is happening (ht Jean-Philippe Bempel) with <a href="http://ssw.jku.at/General/Staff/TW/igv.html">Ideal Graph Visualizer</a>.</p>
+
+<p>Unfortunately to be able to use that you need to build a debug version of OpenJDK.</p>
+
+<h2 id="building-openjdk">Building OpenJDK</h2>
+
+<p>To build OpenJDK you will need a Linux box, on MacOsX it relies on an old version of Xcode that is not supported with Sierra.</p>
+
+<p>Also, beware to not have a <code class="highlighter-rouge">j</code> in the name the path of the directories you are checking it out - avoid opendjdk  -.</p>
+
+<p>you will need JDK 1.7 to build it, it is also needed to launch ideal graph visualizer.</p>
+
+<p>Make sure that you have a gcc 4.3 to 4.9 installed as it will fail with gcc 5 <a href="http://askubuntu.com/questions/26498/choose-gcc-and-g-version/26518#26518">for ubuntu</a>.</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">hg clone http://hg.openjdk.java.net/jdk8/jdk8 open_dk
+<span class="nb">cd </span>open_dk
+bash ./get_sources
+bash configure --enable-debug --enable-openjdk-only --with-java-variants<span class="o">=</span>server --disable-headful
+<span class="c"># check that Boot JDK points to 1.7 and C and C++ compiler to Gcc 4.9</span>
+make all</code></pre></figure>
+
+<p>if it fails to check the os_versions because you are running a 4.x kernel 
+append 4% to the SUPPORTED_OS_VERSION in hotspot/make/linux/Makefile</p>
+
+<p>You might need to install a few libraries… but once make all succeed you have 
+your vm in build/</p>
+
+<h2 id="ideal-graph-visualizer">Ideal Graph Visualizer</h2>
+
+<p>Now we need to start Ideal Graph Visualizer</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">wget http://ssw.jku.at/General/Staff/PH/igv_latest.zip
+unzip igv_latest.zip
+<span class="nb">cd </span>idealgraphvisualizer
+bin/idealgraphvisualizer --jdkhome<span class="o">=</span>/usr/lib/jvm/java-7-oracle</code></pre></figure>
+
+<p>and run the benchmark with the debug JVM</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">java -jar target/benchmarks.jar  SimplifiedBenchmark2.benchmarkDirect -f 1 -i 10 -wi 10 -bm avgt -tu ms -jvm /home/aroger/dev/dev8/build/linux-x86_64-normal-server-fastdebug/jdk/bin/java -jvmArgs <span class="s2">"-XX:PrintIdealGraphLevel=3"</span>
+java -jar target/benchmarks.jar  SimplifiedBenchmark2.benchmarkHolder -f 1 -i 10 -wi 10 -bm avgt -tu ms -jvm /home/aroger/dev/dev8/build/linux-x86_64-normal-server-fastdebug/jdk/bin/java -jvmArgs <span class="s2">"-XX:PrintIdealGraphLevel=3"</span></code></pre></figure>
+
+<p>the JVM might not be that stable and fail sometimes it should eventually run the benchmark successfully 
+and you should see the nodes information being pushed to Ideal Graph Visualizer.</p>
+
+<p>you can also export the data to a file using <code class="highlighter-rouge">-XX:PrintIdealGraphFile=file.xml</code></p>
+
+<h2 id="nextcharholder-graph"><code class="highlighter-rouge">nextCharHolder</code> graph</h2>
+
+<p>Let’s start by looking at the graph for the one with the holder.</p>
+
+<p>If you look at ASM for the direct you see the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L45">length calculation</a>
+being done before the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-direct.txt#L64"><code class="highlighter-rouge">','</code> check</a>.</p>
+
+<p>That <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-holder.txt#L58"><code class="highlighter-rouge">sub</code></a> is done after the <a href="https://github.com/arnaudroger/sfm-csv-variability/blob/master/simplified2/asm-holder.txt#L49"><code class="highlighter-rouge">if</code></a>
+in the holder version.</p>
+
+<p>If we isolate the <code class="highlighter-rouge">sub</code> in the graph we can see that it depends on the <code class="highlighter-rouge">if</code> check.</p>
+
+<p><img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-before-2c-sub.png" alt="holder 2c sub" /></p>
+
+<p>Same for the <code class="highlighter-rouge">sub</code> in the second condition</p>
+
+<p><img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-before-0a-sub.png" alt="holder 0a sub" /></p>
+
+<p>That stays true after the <code class="highlighter-rouge">RemoveUseless</code> in the <code class="highlighter-rouge">AfterParsing</code> stage
+see the following graphs.</p>
+<ul>
+  <li><a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-after-0a-sub.png"><code class="highlighter-rouge">','</code> tree</a></li>
+  <li><a href="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/holder-after-2c-sub.png"><code class="highlighter-rouge">'\n'</code> tree</a></li>
+</ul>
+
+<h2 id="nextchardirect-graph"><code class="highlighter-rouge">nextCharDirect</code> graph</h2>
+
+<p>But in the direct call we can see the 2 <code class="highlighter-rouge">sub</code>s in the <code class="highlighter-rouge">Before RemoveUseless</code> stage
+there is no dependency on the <code class="highlighter-rouge">If</code></p>
+
+<ul>
+  <li>
+    <p>for the <code class="highlighter-rouge">','</code>
+<img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-before-2c-sub.png" alt="direct 2c sub" /></p>
+  </li>
+  <li>
+    <p>or the <code class="highlighter-rouge">'\n'</code></p>
+  </li>
+</ul>
+
+<p><img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-before-0a-sub.png" alt="direct 0a sub" /></p>
+
+<p>And at the <code class="highlighter-rouge">AfterParsing</code> stage, there is only one <code class="highlighter-rouge">Sub</code> left</p>
+
+<p><img src="https://raw.githubusercontent.com/arnaudroger/sfm-csv-variability/master/simplified2/direct-after-2c_0a-sub.png" alt="direct-after-2c_0a-sub" /></p>
+
+<p>The allocated array depends on the <code class="highlighter-rouge">Sub</code> and on the <code class="highlighter-rouge">If</code>, but the <code class="highlighter-rouge">Sub</code> does not depend on the <code class="highlighter-rouge">If</code>.
+Which can explain why it is pushed outside the <code class="highlighter-rouge">If</code>.</p>
+
+<h1 id="what-does-that-mean">What does that mean?</h1>
+
+<p>Because the <code class="highlighter-rouge">sub</code> does not depend on the <code class="highlighter-rouge">if</code> in the direct call in the <code class="highlighter-rouge">RemoveUseless</code> stage and does not have any side effect
+the code get consolidate in one place and is generated outside the if.
+The holder stops that by creating a dependency on the <code class="highlighter-rouge">if</code>. Why does it create a dependency on the <code class="highlighter-rouge">if</code>?
+I don’t know yet.</p>
+
+<h1 id="when-is-it-a-problem">When is it a problem?</h1>
+
+<p>If you have a 2 or more test that contains duplicated code with no side effect, that code might 
+end up being executed outside the if.</p>
+
+<p>Depending on the condition ratio and how many time the <code class="highlighter-rouge">if</code> is called, the impact might start to dominate as it does in my 
+CSV parser. Most of the time the condition are false and the code inside should not be executed but some of it is.</p>
+
+<h1 id="what-next">What next?</h1>
+
+<p>I would really like to understand why <code class="highlighter-rouge">SubI</code> does not depend on <code class="highlighter-rouge">if</code> but when adding an indirection it does.
+How does the RemoveUseless work? should the code with no side effect still be marked as depending on the <code class="highlighter-rouge">if</code>.
+The only place to go from there is to dig in the hotspot code … and experiment in will
+hopefully be part 3.</p>
+
+    </div>
+
+    <div class="PageNavigation">
+        
+        <a class="prev" href="/blog/2017/02/27/jooq-one-to-many.html">&laquo; Filling the one-to-many, many-to-many jOOQ mapping gap</a>
+        
+        
+    </div>
+
+
+    <div id="disqus_thread"></div>
+<script>
+
+/**
+ *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+ *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables */
+/*
+var disqus_config = function () {
+    this.page.url = 'http://arnaudroger.github.io/blog/2017/02/28/java-performance-puzzle-part2.html';  // Replace PAGE_URL with your page's canonical URL variable
+    this.page.identifier = '/2017/02/28/java-performance-puzzle-part2'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+    var d = document, s = d.createElement('script');
+    s.src = '//arogerblog.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+    <div class="wrapper">
+
+        <h2 class="footer-heading">Eat Sleep Code Repeat.</h2>
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Eat Sleep Code Repeat.</li>
+                    <li><a href="mailto:arnaud.roger@gmail.com">arnaud.roger@gmail.com</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                <ul class="social-media-list">
+                    
+                    <li>
+                        <a href="https://github.com/arnaudroger"><span class="icon icon--github"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">arnaudroger</span></a>
+
+                    </li>
+                    
+
+                    
+                    <li>
+                        <a href="https://twitter.com/arnaudroger"><span class="icon icon--twitter"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username">arnaudroger</span></a>
+
+                    </li>
+                    
+                </ul>
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p>Rambling of an old java developer.</p>
+            </div>
+        </div>
+
+    </div>
+</footer>
+
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-83272639-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+
+  </body>
+
+</html>
