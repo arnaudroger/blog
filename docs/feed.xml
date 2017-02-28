@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 28 Feb 2017 09:58:14 +0000</pubDate>
-    <lastBuildDate>Tue, 28 Feb 2017 09:58:14 +0000</lastBuildDate>
+    <pubDate>Tue, 28 Feb 2017 10:11:09 +0000</pubDate>
+    <lastBuildDate>Tue, 28 Feb 2017 10:11:09 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -360,6 +360,8 @@ Now we just need to execute the query, retrieve the &lt;code class=&quot;highlig
   &lt;li&gt;&lt;a href=&quot;http://simpleflatmapper.org/0106-getting-started-jooq.html&quot;&gt;SimpleFlatMappper jOOQ integration&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;http://simpleflatmapper.org/0102-getting-started-jdbc.html&quot;&gt;SimpleFlatMapper JDBC Mapper&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
+
+&lt;p&gt;PS: It should be possible to do all that without having to write any DTO, blog post to come.&lt;/p&gt;
 </description>
         <pubDate>Mon, 27 Feb 2017 00:00:00 +0000</pubDate>
         <link>http://arnaudroger.github.io/blog/2017/02/27/jooq-one-to-many.html</link>

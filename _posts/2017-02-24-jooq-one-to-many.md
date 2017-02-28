@@ -103,3 +103,5 @@ More information :
 * [SimpleFlatMapper Property Mapping](http://simpleflatmapper.org/0201-property-mapping.html)
 * [SimpleFlatMappper jOOQ integration](http://simpleflatmapper.org/0106-getting-started-jooq.html)
 * [SimpleFlatMapper JDBC Mapper](http://simpleflatmapper.org/0102-getting-started-jdbc.html)
+
+PS: It should be possible to do all that without having to write any DTO, blog post to come.
