@@ -2,7 +2,7 @@
 layout: post
 ---
 
-This post is a follow-up to [Java Performance Puzzle](/2016/10/30/java-performance-puzzle.html) in which a small code change
+This post is a follow-up to [Java Performance Puzzle](/blog/2016/10/30/java-performance-puzzle.html) in which a small code change
 leads to a counter-intuitive performance gain.
 
 # Simplified case
