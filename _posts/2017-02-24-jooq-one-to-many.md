@@ -50,7 +50,7 @@ Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to 
 <dependency>
     <groupId>org.simpleflatmapper</groupId>
     <artifactId>sfm-jdbc</artifactId>
-    <version>3.11.1</version>
+    <version>3.11.2</version>
 </dependency>
 ```
  
