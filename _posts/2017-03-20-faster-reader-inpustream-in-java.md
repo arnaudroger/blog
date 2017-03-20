@@ -174,3 +174,4 @@ and what part is linked to the difference in implementation.
 
 The benchmark seems to be consistent between Ubuntu and MacOSX.
 
+PS: java9 returns similar results, except for InputStream FileInputStream is 4 to 8% faster on the big file size. but reader conclusions are the same.
