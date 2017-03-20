@@ -12,8 +12,8 @@ As stated in the bug report, you need to go through a [`FileChannel`](https://do
 That's also what the convenience method [`Files.newInputStream`](https://docs.oracle.com/javase/8/docs/api/java/nio/file/Files.html#newInputStream-java.nio.file.Path-java.nio.file.OpenOption...-) end up doing.
 
 ```java
-try (FileChannel open = FileChannel.open(file.toPath())) {
-    try (InputStream is = Channels.newInputStream(open)) {
+try (FileChannel channel = FileChannel.open(file.toPath())) {
+    try (InputStream is = Channels.newInputStream(channel)) {
       // do something
     }
 }
@@ -26,12 +26,21 @@ try (InputStream is = Files.newInputStream(file.toPath)) {
 If you are stuck in java 6 you will need to get the `FileChannel` via a [`RandomAccessFile`](https://docs.oracle.com/javase/8/docs/api/index.html?java/io/RandomAccessFile.html).
 
 ```java
-try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
-    try (FileChannel open = randomAccessFile.getChannel()) {
-        try (InputStream is = Channels.newInputStream(open)) {
+RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
+try {
+    FileChannel channel = randomAccessFile.getChannel();
+    try {
+        InputStream is = Channels.newInputStream(channel);
+        try {
           // do something
+        } finally {
+            is.close();
         }
+    } finally {
+        channel.close();
     }
+} finally {
+    randomAccessFile.close();
 }
 ```
 
@@ -92,8 +101,8 @@ on big files.
 To instantiate a Reader without a `FileInputStream` we will use the FileChannel
 
 ```java 
-try (FileChannel open = FileChannel.open(file.toPath())) {
-    try (Reader reader = Channels.newReader(open, "UTF-8")) {
+try (FileChannel channel = FileChannel.open(file.toPath())) {
+    try (Reader reader = Channels.newReader(channel, "UTF-8")) {
         // do something
     }
 }
@@ -101,12 +110,21 @@ try (FileChannel open = FileChannel.open(file.toPath())) {
 
 or in java6
 ```java
-try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
-    try (FileChannel open = randomAccessFile.getChannel()) {
-        try (Reader reader = Channels.newReader(open, "UTF-8")) {
+RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
+try {
+    FileChannel channel = randomAccessFile.getChannel();
+    try {
+        Reader reader = Channels.newReader(open, "UTF-8");
+        try {
         // do something
+        } finally {
+            reader.close();
         }
+    } finally {
+        channel.close();
     }
+} finally {
+    randomAccessFile.close();
 }
 ```
 

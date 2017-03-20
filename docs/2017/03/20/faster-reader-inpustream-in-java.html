@@ -68,8 +68,8 @@ Because <code class="highlighter-rouge">FileInputStream</code> implements a <cod
 <p>As stated in the bug report, you need to go through a <a href="https://docs.oracle.com/javase/8/docs/api/index.html?java/nio/channels/FileChannel.html"><code class="highlighter-rouge">FileChannel</code></a>, then you can create an InputStream using <a href="https://docs.oracle.com/javase/8/docs/api/java/nio/channels/Channels.html#newInputStream-java.nio.channels.ReadableByteChannel-"><code class="highlighter-rouge">Channels.newInputStrean(ch)</code></a>.
 That’s also what the convenience method <a href="https://docs.oracle.com/javase/8/docs/api/java/nio/file/Files.html#newInputStream-java.nio.file.Path-java.nio.file.OpenOption...-"><code class="highlighter-rouge">Files.newInputStream</code></a> end up doing.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span><span class="n">FileChannel</span> <span class="n">open</span> <span class="o">=</span> <span class="n">FileChannel</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">file</span><span class="o">.</span><span class="na">toPath</span><span class="o">()))</span> <span class="o">{</span>
-    <span class="k">try</span> <span class="o">(</span><span class="n">InputStream</span> <span class="n">is</span> <span class="o">=</span> <span class="n">Channels</span><span class="o">.</span><span class="na">newInputStream</span><span class="o">(</span><span class="n">open</span><span class="o">))</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span><span class="n">FileChannel</span> <span class="n">channel</span> <span class="o">=</span> <span class="n">FileChannel</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">file</span><span class="o">.</span><span class="na">toPath</span><span class="o">()))</span> <span class="o">{</span>
+    <span class="k">try</span> <span class="o">(</span><span class="n">InputStream</span> <span class="n">is</span> <span class="o">=</span> <span class="n">Channels</span><span class="o">.</span><span class="na">newInputStream</span><span class="o">(</span><span class="n">channel</span><span class="o">))</span> <span class="o">{</span>
       <span class="c1">// do something</span>
     <span class="o">}</span>
 <span class="o">}</span>
@@ -82,12 +82,21 @@ That’s also what the convenience method <a href="https://docs.oracle.com/javas
 
 <p>If you are stuck in java 6 you will need to get the <code class="highlighter-rouge">FileChannel</code> via a <a href="https://docs.oracle.com/javase/8/docs/api/index.html?java/io/RandomAccessFile.html"><code class="highlighter-rouge">RandomAccessFile</code></a>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span><span class="n">RandomAccessFile</span> <span class="n">randomAccessFile</span> <span class="o">=</span> <span class="k">new</span> <span class="n">RandomAccessFile</span><span class="o">(</span><span class="n">file</span><span class="o">,</span> <span class="s">"r"</span><span class="o">))</span> <span class="o">{</span>
-    <span class="k">try</span> <span class="o">(</span><span class="n">FileChannel</span> <span class="n">open</span> <span class="o">=</span> <span class="n">randomAccessFile</span><span class="o">.</span><span class="na">getChannel</span><span class="o">())</span> <span class="o">{</span>
-        <span class="k">try</span> <span class="o">(</span><span class="n">InputStream</span> <span class="n">is</span> <span class="o">=</span> <span class="n">Channels</span><span class="o">.</span><span class="na">newInputStream</span><span class="o">(</span><span class="n">open</span><span class="o">))</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">RandomAccessFile</span> <span class="n">randomAccessFile</span> <span class="o">=</span> <span class="k">new</span> <span class="n">RandomAccessFile</span><span class="o">(</span><span class="n">file</span><span class="o">,</span> <span class="s">"r"</span><span class="o">);</span>
+<span class="k">try</span> <span class="o">{</span>
+    <span class="n">FileChannel</span> <span class="n">channel</span> <span class="o">=</span> <span class="n">randomAccessFile</span><span class="o">.</span><span class="na">getChannel</span><span class="o">();</span>
+    <span class="k">try</span> <span class="o">{</span>
+        <span class="n">InputStream</span> <span class="n">is</span> <span class="o">=</span> <span class="n">Channels</span><span class="o">.</span><span class="na">newInputStream</span><span class="o">(</span><span class="n">channel</span><span class="o">);</span>
+        <span class="k">try</span> <span class="o">{</span>
           <span class="c1">// do something</span>
+        <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+            <span class="n">is</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
         <span class="o">}</span>
+    <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+        <span class="n">channel</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
     <span class="o">}</span>
+<span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+    <span class="n">randomAccessFile</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
 <span class="o">}</span>
 </code></pre>
 </div>
@@ -154,8 +163,8 @@ on big files.</p>
 
 <p>To instantiate a Reader without a <code class="highlighter-rouge">FileInputStream</code> we will use the FileChannel</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span><span class="n">FileChannel</span> <span class="n">open</span> <span class="o">=</span> <span class="n">FileChannel</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">file</span><span class="o">.</span><span class="na">toPath</span><span class="o">()))</span> <span class="o">{</span>
-    <span class="k">try</span> <span class="o">(</span><span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">Channels</span><span class="o">.</span><span class="na">newReader</span><span class="o">(</span><span class="n">open</span><span class="o">,</span> <span class="s">"UTF-8"</span><span class="o">))</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span><span class="n">FileChannel</span> <span class="n">channel</span> <span class="o">=</span> <span class="n">FileChannel</span><span class="o">.</span><span class="na">open</span><span class="o">(</span><span class="n">file</span><span class="o">.</span><span class="na">toPath</span><span class="o">()))</span> <span class="o">{</span>
+    <span class="k">try</span> <span class="o">(</span><span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">Channels</span><span class="o">.</span><span class="na">newReader</span><span class="o">(</span><span class="n">channel</span><span class="o">,</span> <span class="s">"UTF-8"</span><span class="o">))</span> <span class="o">{</span>
         <span class="c1">// do something</span>
     <span class="o">}</span>
 <span class="o">}</span>
@@ -163,12 +172,21 @@ on big files.</p>
 </div>
 
 <p>or in java6</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span><span class="n">RandomAccessFile</span> <span class="n">randomAccessFile</span> <span class="o">=</span> <span class="k">new</span> <span class="n">RandomAccessFile</span><span class="o">(</span><span class="n">file</span><span class="o">,</span> <span class="s">"r"</span><span class="o">))</span> <span class="o">{</span>
-    <span class="k">try</span> <span class="o">(</span><span class="n">FileChannel</span> <span class="n">open</span> <span class="o">=</span> <span class="n">randomAccessFile</span><span class="o">.</span><span class="na">getChannel</span><span class="o">())</span> <span class="o">{</span>
-        <span class="k">try</span> <span class="o">(</span><span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">Channels</span><span class="o">.</span><span class="na">newReader</span><span class="o">(</span><span class="n">open</span><span class="o">,</span> <span class="s">"UTF-8"</span><span class="o">))</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">RandomAccessFile</span> <span class="n">randomAccessFile</span> <span class="o">=</span> <span class="k">new</span> <span class="n">RandomAccessFile</span><span class="o">(</span><span class="n">file</span><span class="o">,</span> <span class="s">"r"</span><span class="o">);</span>
+<span class="k">try</span> <span class="o">{</span>
+    <span class="n">FileChannel</span> <span class="n">channel</span> <span class="o">=</span> <span class="n">randomAccessFile</span><span class="o">.</span><span class="na">getChannel</span><span class="o">();</span>
+    <span class="k">try</span> <span class="o">{</span>
+        <span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">Channels</span><span class="o">.</span><span class="na">newReader</span><span class="o">(</span><span class="n">open</span><span class="o">,</span> <span class="s">"UTF-8"</span><span class="o">);</span>
+        <span class="k">try</span> <span class="o">{</span>
         <span class="c1">// do something</span>
+        <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+            <span class="n">reader</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
         <span class="o">}</span>
+    <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+        <span class="n">channel</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
     <span class="o">}</span>
+<span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+    <span class="n">randomAccessFile</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
 <span class="o">}</span>
 </code></pre>
 </div>
