@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 20 Mar 2017 13:06:33 +0000</pubDate>
-    <lastBuildDate>Mon, 20 Mar 2017 13:06:33 +0000</lastBuildDate>
+    <pubDate>Mon, 20 Mar 2017 13:08:34 +0000</pubDate>
+    <lastBuildDate>Mon, 20 Mar 2017 13:08:34 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -14,6 +14,8 @@
         <title>Revisiting File InputStream and Reader instantiation.</title>
         <description>&lt;p&gt;A few days ago I cam across a &lt;a href=&quot;https://twitter.com/leventov/status/842229472581435393&quot;&gt;tweet&lt;/a&gt; from &lt;a href=&quot;https://twitter.com/leventov&quot;&gt;@leventov&lt;/a&gt; about that &lt;a href=&quot;https://issues.apache.org/jira/browse/HDFS-8562&quot;&gt;Hadoop bug report&lt;/a&gt;.
 Because &lt;code class=&quot;highlighter-rouge&quot;&gt;FileInputStream&lt;/code&gt; implements a &lt;code class=&quot;highlighter-rouge&quot;&gt;finalize&lt;/code&gt; method it creates quite a bit of pressure on the Garbage Collector.&lt;/p&gt;
+
+&lt;p&gt;You can use the &lt;code class=&quot;highlighter-rouge&quot;&gt;FileChannel&lt;/code&gt; to read directly in a &lt;code class=&quot;highlighter-rouge&quot;&gt;ByteBuffer&lt;/code&gt;, but we will focus only on the InputStream in place replacement.&lt;/p&gt;
 
 &lt;h1 id=&quot;how-do-you-avoid-fileintputstream&quot;&gt;How do you avoid FileIntputStream&lt;/h1&gt;
 

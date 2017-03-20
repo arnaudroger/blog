@@ -6,6 +6,8 @@ title: Revisiting File InputStream and Reader instantiation.
 A few days ago I cam across a [tweet](https://twitter.com/leventov/status/842229472581435393) from [@leventov](https://twitter.com/leventov) about that [Hadoop bug report](https://issues.apache.org/jira/browse/HDFS-8562).
 Because `FileInputStream` implements a `finalize` method it creates quite a bit of pressure on the Garbage Collector.
 
+You can use the `FileChannel` to read directly in a `ByteBuffer`, but we will focus only on the InputStream in place replacement.
+
 # How do you avoid FileIntputStream
 
 As stated in the bug report, you need to go through a [`FileChannel`](https://docs.oracle.com/javase/8/docs/api/index.html?java/nio/channels/FileChannel.html), then you can create an InputStream using [`Channels.newInputStrean(ch)`](https://docs.oracle.com/javase/8/docs/api/java/nio/channels/Channels.html#newInputStream-java.nio.channels.ReadableByteChannel-).

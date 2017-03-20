@@ -63,6 +63,8 @@
         <p>A few days ago I cam across a <a href="https://twitter.com/leventov/status/842229472581435393">tweet</a> from <a href="https://twitter.com/leventov">@leventov</a> about that <a href="https://issues.apache.org/jira/browse/HDFS-8562">Hadoop bug report</a>.
 Because <code class="highlighter-rouge">FileInputStream</code> implements a <code class="highlighter-rouge">finalize</code> method it creates quite a bit of pressure on the Garbage Collector.</p>
 
+<p>You can use the <code class="highlighter-rouge">FileChannel</code> to read directly in a <code class="highlighter-rouge">ByteBuffer</code>, but we will focus only on the InputStream in place replacement.</p>
+
 <h1 id="how-do-you-avoid-fileintputstream">How do you avoid FileIntputStream</h1>
 
 <p>As stated in the bug report, you need to go through a <a href="https://docs.oracle.com/javase/8/docs/api/index.html?java/nio/channels/FileChannel.html"><code class="highlighter-rouge">FileChannel</code></a>, then you can create an InputStream using <a href="https://docs.oracle.com/javase/8/docs/api/java/nio/channels/Channels.html#newInputStream-java.nio.channels.ReadableByteChannel-"><code class="highlighter-rouge">Channels.newInputStrean(ch)</code></a>.
