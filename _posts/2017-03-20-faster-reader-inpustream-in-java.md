@@ -3,7 +3,7 @@ layout: post
 title: Revisiting File InputStream and Reader instantiation.
 ---
 
-A few days ago I cam across a [tweet](https://twitter.com/leventov/status/842229472581435393?refsrc=email&s=11) from [@leventov](https://twitter.com/leventov) about that [Hadoop bug report](https://issues.apache.org/jira/browse/HDFS-8562).
+A few days ago I cam across a [tweet](https://twitter.com/leventov/status/842229472581435393) from [@leventov](https://twitter.com/leventov) about that [Hadoop bug report](https://issues.apache.org/jira/browse/HDFS-8562).
 Because `FileInputStream` implements a `finalize` method it creates quite a bit of pressure on the Garbage Collector.
 
 # How do you avoid FileIntputStream
