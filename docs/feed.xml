@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 20 Mar 2017 16:03:11 +0000</pubDate>
-    <lastBuildDate>Mon, 20 Mar 2017 16:03:11 +0000</lastBuildDate>
+    <pubDate>Fri, 24 Mar 2017 09:50:43 +0000</pubDate>
+    <lastBuildDate>Fri, 24 Mar 2017 09:50:43 +0000</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -1374,7 +1374,12 @@ java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s
     
       <item>
         <title>Jigsaw Maven Integration</title>
-        <description>&lt;h1 id=&quot;update-20th-of-february-2017&quot;&gt;Update 20th of February 2017&lt;/h1&gt;
+        <description>&lt;h1 id=&quot;update-24th-of-march-2017&quot;&gt;Update 24th of March 2017&lt;/h1&gt;
+
+&lt;p&gt;There seems to be quite a bit of interest on the subject, if you don’t find the answer to what you are looking for
+don’t hesitate to leave a comment and if I know the answer I’ll update the page so that everybody else can benefit from it.&lt;/p&gt;
+
+&lt;h1 id=&quot;update-20th-of-february-2017&quot;&gt;Update 20th of February 2017&lt;/h1&gt;
 
 &lt;p&gt;Maven 3.3.9 does not seem to work very well with java 9, Maven 3.2.5 is fine. 
 seems to be some cglib access, there should be a way to open the package if I knew which one was failing.&lt;/p&gt;
