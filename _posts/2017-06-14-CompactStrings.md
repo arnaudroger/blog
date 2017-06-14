@@ -1,0 +1,156 @@
+---
+layout: post
+title: Java 9 String changes in context
+---
+
+## Compact Strings
+
+### History
+
+Java was originally developed to support [UCS-2](https://en.wikipedia.org/wiki/Universal_Coded_Character_Set), also referred as Unicode at the time, using 16 bits per character allowing for 65,536 characters.
+It's only in 2004 with [Java 5](https://en.wikipedia.org/wiki/Java_version_history#Java_5_updates) that [UTF-16](https://en.wikipedia.org/wiki/UTF-16) support was [introduced](http://www.oracle.com/technetwork/articles/javase/supplementary-142654.html) by adding a method to extract 32 bits code point from chars.
+
+### UseCompressedStrings
+
+In [Java 6 Update 21](http://www.oracle.com/technetwork/java/javase/6u21-156341.html) the [`UseCompressedStrings`](http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html) option was added to encode `US-ASCII` `String` on a byte per character.
+It was introduced to improve SPECjBB performance trading off memory bandwidth for CPU time, [See](http://stackoverflow.com/questions/8833385/support-for-compressed-strings-being-dropped-in-hotspot-jvm/10289995#10289995).
+ 
+The feature was experimental, not open-source, and only led to gains in very small sets of cases as it needed to unpack the byte[] to do most of its operations, [See Q&A with Aleksey Shipilev](https://www.infoq.com/news/2016/02/compact-strings-Java-JDK9).
+Due to the absence of real gain in production like environment, and the maintenance cost it was dropped from Java 7. 
+
+### Java 9 Compact Strings
+
+The [JEP 254](http://openjdk.java.net/jeps/254) goal was to build a more memory efficient String when possible that would have at least the same performance as the current implementation.
+Instead of switching between `char[]` and `byte[]`, it is always backed by a `byte[]`.
+If it only contains [latin-1](https://en.wikipedia.org/wiki/ISO/IEC_8859-1) characters, each one is stored in one byte, otherwise, the characters are stored as [UTF-16](https://en.wikipedia.org/wiki/UTF-16) on 2 bytes - a code point can expand over more than 2 bytes. 
+A marker has also been added to store the coder used. 
+
+The `String` methods have a specialised implementation for [latin-1](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/StringLatin1.java) and [UTF-16](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/StringUTF16.java).
+Most of these methods will be replaced by an optimised intrinsic at runtime.
+ 
+This feature is enabled by default and can be switch off using the `-XX:-CompactStrings`.
+Note that switching it off does not revert to a `char[]` backed implementation it will just store all the `String`s as `UTF-16`.
+
+`StringBuilder` and `StringBuffer` are now also backed by a `byte[]` to match the `String` implementation.
+
+
+![Small Strings original https://www.flickr.com/photos/dhilowitz/27393588353](/blog/images/CompactStrings/small_strings.jpg)
+
+### Java 9 String implementation
+
+In Java 8 and previous - except for UseCompressedStrings - a `String` is basically 
+
+```java
+    private final char value[];
+```
+
+each method will access that char array. In Java 9 we now have
+
+```java
+    private final byte[] value;
+    private final byte coder;
+```
+where coder can be 
+
+```java 
+    static final byte LATIN1 = 0;
+    static final byte UTF16 = 1;
+```
+
+most of the method then will do check the coder and dispatch to the specific implementation.
+
+```java 
+    public int indexOf(int ch, int fromIndex) {
+        return isLatin1() ? StringLatin1.indexOf(value, ch, fromIndex)
+                          : StringUTF16.indexOf(value, ch, fromIndex);
+    }
+    
+    private boolean isLatin1() {
+            return COMPACT_STRINGS && coder == LATIN1;
+    }
+```
+
+to mitigate the cost involves a lot of method have by intrisify and the asm generate has been improved.
+
+That came with some counter intuitive result where `indexOf(char)` in `LATIN-1` is more expensive than `indexOf(String)` with a one char String. 
+This is due to the fact that in latin1 `indexOf(String)` calls in intrisic method and  `indexOf(char)`. In `UTF-16` they are both intrisic.
+
+I would not though optimise for that, it is a known [issue](https://bugs.openjdk.java.net/browse/JDK-8173585) that is targeted to be fixed for Java 10.
+
+There a lot more details discussion about the performance impact of that change [here](http://cr.openjdk.java.net/~shade/density/state-of-string-density-v1.txt).
+The overall real life application impact is hard to guess as it depends on the kind of work being done and the kind of data being process.
+It will also hard to directly compare with a Java 8 run as other Java 9 changes might impact the result.
+
+### OptimizeStringConcat
+
+In 2010 an [Optimisation](https://bugs.openjdk.java.net/browse/JDK-6892658) was introduced with [Java 6 Update 18](http://www.oracle.com/technetwork/java/javase/6u18-142093.html). 
+The OptimizeStringConcat flag was officially documented from [Update 20](http://www.oracle.com/technetwork/systems/vmoptions-jsp-140102.html) and enable by default in [Java 7 Update 4](http://www.oracle.com/technetwork/java/javase/2col/7u4bugfixes-1579555.html) [Bug 7103784](http://bugs.java.com/bugdatabase/view_bug.do?bug_id=7103784).
+ 
+The hotspot compiler tries to recognise String concatenation byte-code and replace it with an optimised version that remove the `StringBuilder` instantiation and create the `String` directly.
+ 
+### [Indify String Concatenation](http://openjdk.java.net/jeps/280)
+ OptimizeStringConcat implementation is quite fragile and it's easy to have the code fall outside the Abstract Syntax Tree pattern recognition - see for example [Bug 8043677](https://bugs.openjdk.java.net/browse/JDK-8043677) -.
+ 
+ The Compact Strings changed caused a few issues with it highlighting the problem.
+ 
+ Indify String Concatenation addresses that problem by replacing the concatenation byte-code by an `InvokeDynamic` call, and a bootstrap method that will generate the concat call. 
+ Now the optimisation won't depend on the AST analyses, and the code is generated from java making it easier to maintain.
+ 
+ The following
+```java
+String str = foo + bar;
+```
+
+would generate the following byte-code
+```java
+    NEW java/lang/StringBuilder
+    DUP
+    INVOKESPECIAL java/lang/StringBuilder.<init> ()V
+    ALOAD 1
+    INVOKEVIRTUAL java/lang/StringBuilder.append (Ljava/lang/String;)Ljava/lang/StringBuilder;
+    ALOAD 2
+    INVOKEVIRTUAL java/lang/StringBuilder.append (Ljava/lang/String;)Ljava/lang/StringBuilder;
+    INVOKEVIRTUAL java/lang/StringBuilder.toString ()Ljava/lang/String;
+    ASTORE 3
+```
+
+it now generates 
+```java
+     ALOAD 1
+     ALOAD 2
+     InvokeDynamic #0:makeConcatWithConstants:(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+     ASTORE 3
+```
+
+the first time the InvokeDynamic is called the VM will replace it by the CallSite generated by the following bootstrap methods  
+
+```java 
+BootstrapMethods:
+  0: #28 REF_invokeStatic java/lang/invoke/StringConcatFactory.makeConcatWithConstants:(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+    Method arguments:
+      #29 \u0001\u0001
+```
+
+### Strategies
+
+[`StringConcatFactory`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java) offers different strategies to generate the `CallSite` divided in byte-code generator using ASM and MethodHandle-based one.
+
+* [`BC_SB`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L137): [generate the byte-code](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L795) equivalent to what `javac` generates in Java 8.
+* [`BC_SB_SIZED`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L143): [generate the byte-code](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L795) equivalent to what `javac` but try to estimate the initial size of the `StringBuilder`.
+* [`BC_SB_SIZED_EXACT`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L149): [generate the byte-code](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L795) equivalent to what `javac` but compute the exact size of the `StringBuilder`.
+* [`MH_SB_SIZED`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L155): [combines MethodHandles](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L1232) that ends up calling the `StringBuilder` with an estimated initial size.
+* [`MH_SB_SIZED_EXACT`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L161): [combines MethodHandles](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L1232) that ends up calling the `StringBuilder` with an exact size.
+* [`MH_INLINE_SIZED_EXACT`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L167): [combines MethodHandles](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L1467) that creates directly the String with an exact size byte[] with no copy.
+
+The default and most [performant](http://cr.openjdk.java.net/~shade/8085796/notes.txt) one is `MH_INLINE_SIZED_EXACT` that can lead to 3 to 4 times performance improvement. 
+You can override the `Strategy` on the command line by defining the property `java.lang.invoke.stringConcat`.
+
+It's worth just having a look at the [`MH_INLINE_SIZED_EXACT`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L167): [combines MethodHandles](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java#L1467) to see how we can now use MethodHandle to efficiently replace code generation.
+
+## Summary
+
+The String related change comes from a long history of trying to optimize operation of String in the jvm.
+The last changes are more performance conscious and leverage the intrinsic, better jit.
+String concatenation also illustrate a new way of solving problem without being stuck in the intrinsic world, invoke dynamic allows to deliver perf improvement transparently without messing about with C2 code.
+
+
