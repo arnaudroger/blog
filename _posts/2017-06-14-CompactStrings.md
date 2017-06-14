@@ -1,13 +1,19 @@
 ---
 layout: post
-title: Java 9 String changes in context
+title: Evolution of String to Java 9 Compact Strings and Indify String Concatenation
 ---
+
+Java 9 comes with 2 major changes on how String behaves to lower memory usage and improve performance.
+* [Compact Strings](#compact-strings)
+* [Indify String Concatenation](#string-concatenation)
+
+In the following we will put those changes into context and explore what they are and what their impact is.
 
 ## Compact Strings
 
 ### History
 
-Java was originally developed to support [UCS-2](https://en.wikipedia.org/wiki/Universal_Coded_Character_Set), also referred as Unicode at the time, using 16 bits per character allowing for 65,536 characters.
+Java was originally developed to support [UCS-2](https://en.wikipedia.org/wiki/Universal_Coded_Character_Set), also referred to as Unicode at the time, using 16 bits per character allowing for 65,536 characters.
 It's only in 2004 with [Java 5](https://en.wikipedia.org/wiki/Java_version_history#Java_5_updates) that [UTF-16](https://en.wikipedia.org/wiki/UTF-16) support was [introduced](http://www.oracle.com/technetwork/articles/javase/supplementary-142654.html) by adding a method to extract 32 bits code point from chars.
 
 ### UseCompressedStrings
@@ -15,21 +21,21 @@ It's only in 2004 with [Java 5](https://en.wikipedia.org/wiki/Java_version_histo
 In [Java 6 Update 21](http://www.oracle.com/technetwork/java/javase/6u21-156341.html) the [`UseCompressedStrings`](http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html) option was added to encode `US-ASCII` `String` on a byte per character.
 It was introduced to improve SPECjBB performance trading off memory bandwidth for CPU time, [See](http://stackoverflow.com/questions/8833385/support-for-compressed-strings-being-dropped-in-hotspot-jvm/10289995#10289995).
  
-The feature was experimental, not open-source, and only led to gains in very small sets of cases as it needed to unpack the byte[] to do most of its operations, [See Q&A with Aleksey Shipilev](https://www.infoq.com/news/2016/02/compact-strings-Java-JDK9).
-Due to the absence of real gain in production like environment, and the maintenance cost it was dropped from Java 7. 
+The feature was experimental, not open-source, and only led to gains in a small number of cases as it needed to transform the US-ASCII byte[] array to a UTF-16 char[] to do most of its operations, [See Q&A with Aleksey Shipilev](https://www.infoq.com/news/2016/02/compact-strings-Java-JDK9).
+Due to the absence of real gain in production like environments, and the high maintenance cost, it was dropped from Java 7. 
 
 ### Java 9 Compact Strings
 
 The [JEP 254](http://openjdk.java.net/jeps/254) goal was to build a more memory efficient String when possible that would have at least the same performance as the current implementation.
 Instead of switching between `char[]` and `byte[]`, it is always backed by a `byte[]`.
-If it only contains [latin-1](https://en.wikipedia.org/wiki/ISO/IEC_8859-1) characters, each one is stored in one byte, otherwise, the characters are stored as [UTF-16](https://en.wikipedia.org/wiki/UTF-16) on 2 bytes - a code point can expand over more than 2 bytes. 
+If it only contains [LATIN-1](https://en.wikipedia.org/wiki/ISO/IEC_8859-1) characters, each one is stored in one byte, otherwise, the characters are stored as [UTF-16](https://en.wikipedia.org/wiki/UTF-16) on 2 bytes - a code point can expand over more than 2 bytes. 
 A marker has also been added to store the coder used. 
 
-The `String` methods have a specialised implementation for [latin-1](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/StringLatin1.java) and [UTF-16](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/StringUTF16.java).
+The `String` methods have a specialised implementation for [LATIN-1](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/StringLatin1.java) and [UTF-16](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/StringUTF16.java).
 Most of these methods will be replaced by an optimised intrinsic at runtime.
  
 This feature is enabled by default and can be switch off using the `-XX:-CompactStrings`.
-Note that switching it off does not revert to a `char[]` backed implementation it will just store all the `String`s as `UTF-16`.
+Note that switching it off does not revert to a `char[]` backed implementation, it will just store all the `String`s as `UTF-16`.
 
 `StringBuilder` and `StringBuffer` are now also backed by a `byte[]` to match the `String` implementation.
 
@@ -57,7 +63,7 @@ where coder can be
     static final byte UTF16 = 1;
 ```
 
-most of the method then will do check the coder and dispatch to the specific implementation.
+most of the methods then will check the coder and dispatch to the specific implementation.
 
 ```java 
     public int indexOf(int ch, int fromIndex) {
@@ -70,38 +76,42 @@ most of the method then will do check the coder and dispatch to the specific imp
     }
 ```
 
-to mitigate the cost involves a lot of method have by intrisify and the asm generate has been improved.
+To mitigate the cost of the coder check and for some cases the unpacking of bytes to chars, some methods have been intrinsified, and the asm generated by the JIT has been improved.
 
-That came with some counter intuitive result where `indexOf(char)` in `LATIN-1` is more expensive than `indexOf(String)` with a one char String. 
-This is due to the fact that in latin1 `indexOf(String)` calls in intrisic method and  `indexOf(char)`. In `UTF-16` they are both intrisic.
+This came with some counter intuitive results where `indexOf(char)` in `LATIN-1` is more expensive than `indexOf(String)`. 
+This is due to the fact that in `LATIN-1` `indexOf(String)` calls an intrinsic method and `indexOf(char)` does not. 
+In `UTF-16` they are both intrinsic.
 
-I would not though optimise for that, it is a known [issue](https://bugs.openjdk.java.net/browse/JDK-8173585) that is targeted to be fixed for Java 10.
+Because it only affects `LATIN-1` `String`, it is probably not wise to optimise for that.
+It is also a known [issue](https://bugs.openjdk.java.net/browse/JDK-8173585) that is targeted to be fixed in Java 10.
 
-There a lot more details discussion about the performance impact of that change [here](http://cr.openjdk.java.net/~shade/density/state-of-string-density-v1.txt).
-The overall real life application impact is hard to guess as it depends on the kind of work being done and the kind of data being process.
-It will also hard to directly compare with a Java 8 run as other Java 9 changes might impact the result.
+There is a lot more detailed discussion about the performance impact of this change [here](http://cr.openjdk.java.net/~shade/density/state-of-string-density-v1.txt).
+The overall real life application impact is hard to guess as it depends on the kind of work being done and the kind of data being processed.
+It will also hard to directly compare with a Java 8 run as other Java 9 changes might impact the results.
+
+## String Concatenation
 
 ### OptimizeStringConcat
 
 In 2010 an [Optimisation](https://bugs.openjdk.java.net/browse/JDK-6892658) was introduced with [Java 6 Update 18](http://www.oracle.com/technetwork/java/javase/6u18-142093.html). 
-The OptimizeStringConcat flag was officially documented from [Update 20](http://www.oracle.com/technetwork/systems/vmoptions-jsp-140102.html) and enable by default in [Java 7 Update 4](http://www.oracle.com/technetwork/java/javase/2col/7u4bugfixes-1579555.html) [Bug 7103784](http://bugs.java.com/bugdatabase/view_bug.do?bug_id=7103784).
+The OptimizeStringConcat flag was officially documented from [Update 20](http://www.oracle.com/technetwork/systems/vmoptions-jsp-140102.html) and enabled by default in [Java 7 Update 4](http://www.oracle.com/technetwork/java/javase/2col/7u4bugfixes-1579555.html) [Bug 7103784](http://bugs.java.com/bugdatabase/view_bug.do?bug_id=7103784).
  
-The hotspot compiler tries to recognise String concatenation byte-code and replace it with an optimised version that remove the `StringBuilder` instantiation and create the `String` directly.
+The hotspot compiler tries to recognise String concatenation byte-code and replace it with an optimised version that removes the `StringBuilder` instantiation and create the `String` directly.
  
 ### [Indify String Concatenation](http://openjdk.java.net/jeps/280)
- OptimizeStringConcat implementation is quite fragile and it's easy to have the code fall outside the Abstract Syntax Tree pattern recognition - see for example [Bug 8043677](https://bugs.openjdk.java.net/browse/JDK-8043677) -.
+OptimizeStringConcat implementation is quite fragile and it's easy to have the code fall outside the Abstract Syntax Tree pattern recognition - see for example [Bug 8043677](https://bugs.openjdk.java.net/browse/JDK-8043677) -.
  
- The Compact Strings changed caused a few issues with it highlighting the problem.
+The Compact Strings changes cause a few issues highlighting the problem.
  
- Indify String Concatenation addresses that problem by replacing the concatenation byte-code by an `InvokeDynamic` call, and a bootstrap method that will generate the concat call. 
- Now the optimisation won't depend on the AST analyses, and the code is generated from java making it easier to maintain.
+Indify String Concatenation addresses this problem by replacing the concatenation byte-code by an `InvokeDynamic` call, and a bootstrap method that will generate the concat call. 
+Now the optimisation won't depend on the AST analyses, and the code is generated from java making it easier to maintain.
  
  The following
 ```java
 String str = foo + bar;
 ```
 
-would generate the following byte-code
+was generating the following byte-code
 ```java
     NEW java/lang/StringBuilder
     DUP
@@ -131,6 +141,9 @@ BootstrapMethods:
       #29 \u0001\u0001
 ```
 
+The only caveat here is that you need to compile your code with JDK 9 to benefit from the change.
+A JDK 8 String concat will still be eligible for OptimizeStringConcat optimisation.
+
 ### Strategies
 
 [`StringConcatFactory`](https://github.com/dmlloyd/openjdk/blob/jdk9/jdk9/jdk/src/java.base/share/classes/java/lang/invoke/StringConcatFactory.java) offers different strategies to generate the `CallSite` divided in byte-code generator using ASM and MethodHandle-based one.
@@ -151,6 +164,6 @@ It's worth just having a look at the [`MH_INLINE_SIZED_EXACT`](https://github.co
 
 The String related change comes from a long history of trying to optimize operation of String in the jvm.
 The last changes are more performance conscious and leverage the intrinsic, better jit.
-String concatenation also illustrate a new way of solving problem without being stuck in the intrinsic world, invoke dynamic allows to deliver perf improvement transparently without messing about with C2 code.
+String concatenation also illustrate a new way of solving problems without being stuck in the intrinsic world, invoke dynamic allows to deliver performance improvement transparently without messing about with C2 code.
 
 

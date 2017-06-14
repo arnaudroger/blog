@@ -5,13 +5,13 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 14 Jun 2017 21:31:41 +0100</pubDate>
-    <lastBuildDate>Wed, 14 Jun 2017 21:31:41 +0100</lastBuildDate>
+    <pubDate>Wed, 14 Jun 2017 21:34:43 +0100</pubDate>
+    <lastBuildDate>Wed, 14 Jun 2017 21:34:43 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
       <item>
-        <title>Java 9 Compact Strings and Indify String Concatenation</title>
+        <title>Evolution of String to Java 9 Compact Strings and Indify String Concatenation</title>
         <description>&lt;p&gt;Java 9 comes with 2 major changes on how String behaves to lower memory usage and improve performance.&lt;/p&gt;
 &lt;ul&gt;
   &lt;li&gt;&lt;a href=&quot;#compact-strings&quot;&gt;Compact Strings&lt;/a&gt;&lt;/li&gt;
