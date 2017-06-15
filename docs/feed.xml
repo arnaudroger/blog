@@ -5,9 +5,376 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 14 Jun 2017 21:36:02 +0100</pubDate>
-    <lastBuildDate>Wed, 14 Jun 2017 21:36:02 +0100</lastBuildDate>
+    <pubDate>Thu, 15 Jun 2017 17:28:52 +0100</pubDate>
+    <lastBuildDate>Thu, 15 Jun 2017 17:28:52 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
+    
+    
+      <item>
+        <title>Why reverse loops are not faster</title>
+        <description>&lt;h1 id=&quot;tldr&quot;&gt;TL;DR&lt;/h1&gt;
+&lt;p&gt;Reverse loops are not faster, using the byte code as an indication of performance is a really bad idea. Benchmark!&lt;/p&gt;
+
+&lt;h1 id=&quot;intro&quot;&gt;Intro&lt;/h1&gt;
+
+&lt;p&gt;On the 13th of June &lt;a href=&quot;https://medium.com/@TravCav&quot;&gt;@TravCav&lt;/a&gt; published on medium an &lt;a href=&quot;https://medium.com/@TravCav/why-reverse-loops-are-faster-a09d65473006&quot;&gt;article&lt;/a&gt; arguing that reverse loops are faster than a regular loop.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;p&gt;was slower than&lt;/p&gt;
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;--)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgflip.com/1qxjf1.jpg&quot; alt=&quot;Face palm&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;His analysis is based on looking at the byte generated, but unfortunately, it does not provide any benchmark to confirm his hypothesis.&lt;/p&gt;
+
+&lt;p&gt;I don’t think it is the first time I heard about that idea, it generally comes from the belief that a comparison to 0 is faster.
+That might be true or might have been true who knows.&lt;/p&gt;
+
+&lt;p&gt;Is it true now? is it even relevant?&lt;/p&gt;
+
+&lt;p&gt;Most of the CPUs can execute multiple instructions in parallel, the main cost of a jump is when the branch prediction is wrong.
+Even if a cmp with 0 is faster, the author assumes that the bytecode is relevant to what the CPU will execute.
+Big news it is not, the JIT does a lot of transformation and making an assumption on what gets executed from the bytecode is ludicrous.
+For example:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;After looping back to line 17, the array object has to get loaded back onto the stack at line 18, and the length has to be retrieved again on line 19. And it does this for every loop. Over and over and over…&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;No it does not, the JIT is smart enough to figure out that the length does not vary and it will load it only once. It will also remove the boundary check for that matter.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgflip.com/1qxjiu.jpg&quot; alt=&quot;Jmh&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;the-jmh-benchmark&quot;&gt;The jmh benchmark&lt;/h2&gt;
+
+&lt;p&gt;Anyway, let’s get some real &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop&quot;&gt;benchmark&lt;/a&gt; in there. 
+The &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/src/main/java/io/github/arnaudroger/LoopBenchmark.java&quot;&gt;jmh code&lt;/a&gt; is as follows:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@State&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Scope&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;LoopBenchmark&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+ 
+    &lt;span class=&quot;nd&quot;&gt;@Param&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;1&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;10&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;1000&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;1000000&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;})&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@Setup&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;setUp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;Random&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Random&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;nextInt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    
+    &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testForwardLoop&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testBackwardLoop&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;--)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We initialise an array of int with a random number.
+Each benchmark will sum the array, one with a regular - forward - loop, the other with a reverse - backward - loop.&lt;/p&gt;
+
+&lt;p&gt;Compile, run&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;mvn clean install
+java -jar target/benchmarks.jar
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;h2 id=&quot;the-results&quot;&gt;The results&lt;/h2&gt;
+
+&lt;p&gt;and here are the &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/jmh-result.csv&quot;&gt;results&lt;/a&gt; - the higher the better -:&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Size&lt;/th&gt;
+      &lt;th style=&quot;text-align: right&quot;&gt;1&lt;/th&gt;
+      &lt;th style=&quot;text-align: right&quot;&gt;10&lt;/th&gt;
+      &lt;th style=&quot;text-align: right&quot;&gt;1000&lt;/th&gt;
+      &lt;th style=&quot;text-align: right&quot;&gt;1000000&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Backward&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;240665052&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;146681879&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;3686316&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;3761&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Forward&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;249774234&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;154017527&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;3722753&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;3763&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;(F - B/F)&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;3.65%&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;4.76%&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;0.98%&lt;/td&gt;
+      &lt;td style=&quot;text-align: right&quot;&gt;0.06%&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;The reverse loop is 3 to 4% slower on small array the difference reduces when the size of the array increases.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Contrary to the original post, regular loop is faster.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;the-asm&quot;&gt;the asm&lt;/h2&gt;
+
+&lt;p&gt;Lets have a deeper look at what happens with an array of size 10 by looking at asm generated by the jit for &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt&quot;&gt;forward&lt;/a&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;forward-asm&quot;&gt;forward asm&lt;/h3&gt;
+&lt;p&gt;We can see the core loop from &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L63&quot;&gt;line 63&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L69&quot;&gt;line 69&lt;/a&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;             L0002: movslq 0x10(%r11,%r8,4),%r10
+0x00007f7cad1df4d9: add %r10,%rax  ;*ladd
+                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@21 (line 64)
+0x00007f7cad1df4dc: inc %r8d  ;*iinc
+                              ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@23 (line 63)
+0x00007f7cad1df4df: cmp %ebx,%r8d
+0x00007f7cad1df4e2: jl L0002  ;*if_icmpge
+                              ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@10 (line 63)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;the exit of the method &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L71&quot;&gt;line 71&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L75&quot;&gt;line 75&lt;/a&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;             L0003: add $0x10,%rsp
+0x00007f7cad1df4e8: pop %rbp
+0x00007f7cad1df4e9: test %eax,0x17b81b11(%rip)  # 0x00007f7cc4d61000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x00007f7cad1df4ef: retq
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;but what is happening from &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L44&quot;&gt;line 44&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#58&quot;&gt;line 58&lt;/a&gt; ?&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;             L0000: movslq 0x10(%r11,%r8,4),%r9
+0x00007f7cad1df4a5: add %rax,%r9
+0x00007f7cad1df4a8: movslq %r8d,%rcx
+0x00007f7cad1df4ab: movslq 0x1c(%r11,%rcx,4),%rax
+0x00007f7cad1df4b0: movslq 0x14(%r11,%rcx,4),%rdi
+0x00007f7cad1df4b5: movslq 0x18(%r11,%rcx,4),%rcx
+0x00007f7cad1df4ba: add %r9,%rdi
+0x00007f7cad1df4bd: add %rdi,%rcx
+0x00007f7cad1df4c0: add %rcx,%rax  ;*ladd
+                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@21 (line 64)
+0x00007f7cad1df4c3: add $0x4,%r8d  ;*iinc
+                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@23 (line 63)
+0x00007f7cad1df4c7: cmp %r10d,%r8d
+0x00007f7cad1df4ca: jl L0000  ;*if_icmpge
+                              ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@10 (line 63)                                  
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;it’s looping over 4 elements at a time and adding them together in one pass. The loop has been unrolled until there are less that 4 elements available falling back on the one by one loop on &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L63&quot;&gt;line 63&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;backward-asm&quot;&gt;backward asm&lt;/h3&gt;
+&lt;p&gt;and &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt&quot;&gt;backward&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;We can see the core loop from &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L68&quot;&gt;line 68&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L74&quot;&gt;line 74&lt;/a&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;             L0004: movslq 0x10(%r10,%rcx,4),%r11
+0x00007fa34c559b15: add %r11,%rax  ;*ladd
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@22 (line 74)
+0x00007fa34c559b18: dec %ecx  ;*iinc
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@24 (line 73)
+0x00007fa34c559b1a: cmp $0xffffffff,%ecx
+0x00007fa34c559b1d: jg L0004  ;*iflt
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@11 (line 73)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;very similar the forward version except for the cmp and dec instead of inc.&lt;/p&gt;
+
+&lt;p&gt;the exit of the method &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L66&quot;&gt;line 66&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L80&quot;&gt;line 80&lt;/a&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;             L0005: add $0x20,%rsp
+0x00007fa34c559b23: pop %rbp
+0x00007fa34c559b24: test %eax,0x15e7a4d6(%rip)  # 0x00007fa3623d4000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x00007fa34c559b2a: retq
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;and from &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L49&quot;&gt;line 49&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#64&quot;&gt;line 64&lt;/a&gt;?&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;             L0001: mov %rax,%r11  ;*lload_1
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@14 (line 74)
+             L0002: movslq 0x10(%r10,%rcx,4),%r8
+0x00007fa34c559ae8: movslq 0xc(%r10,%rcx,4),%r9
+0x00007fa34c559aed: movslq 0x8(%r10,%rcx,4),%rbx
+0x00007fa34c559af2: movslq 0x4(%r10,%rcx,4),%rax
+0x00007fa34c559af7: add %r11,%r8
+0x00007fa34c559afa: add %r8,%r9
+0x00007fa34c559afd: add %r9,%rbx
+0x00007fa34c559b00: add %rbx,%rax  ;*ladd
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@22 (line 74)
+0x00007fa34c559b03: add $0xfffffffc,%ecx  ;*iinc
+                                          ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@24 (line 73)
+0x00007fa34c559b06: cmp $0x2,%ecx
+0x00007fa34c559b09: jg L0001  ;*iflt
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@11 (line 73)                                
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;same as for forward adding 4 elements at a time.&lt;/p&gt;
+
+&lt;p&gt;but the logic to get there is slighlty more complicated in the backward loop&lt;/p&gt;
+
+&lt;p&gt;for forward &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L22&quot;&gt;line 22&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L43&quot;&gt;line 43&lt;/a&gt; after getting the array length&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;0x00007f7cad1df458: test %ebx,%ebx
+0x00007f7cad1df45a: jle L0004  ;*if_icmpge
+                               ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@10 (line 63)
+0x00007f7cad1df460: test %ebx,%ebx
+0x00007f7cad1df462: jbe L0005
+0x00007f7cad1df468: mov %ebx,%r9d
+0x00007f7cad1df46b: dec %r9d
+0x00007f7cad1df46e: cmp %ebx,%r9d
+0x00007f7cad1df471: jae L0005  ;*lload_1
+                               ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@13 (line 64)
+0x00007f7cad1df477: movslq 0x10(%r12,%r11,8),%rax  ;*i2l
+                                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@20 (line 64)
+0x00007f7cad1df47c: mov %ebx,%r10d
+0x00007f7cad1df47f: add $0xfffffffd,%r10d
+0x00007f7cad1df483: shl $0x3,%r11
+0x00007f7cad1df487: mov $0x80000000,%r8d
+0x00007f7cad1df48d: cmp %r10d,%r9d
+0x00007f7cad1df490: cmovl %r8d,%r10d
+0x00007f7cad1df494: mov $0x1,%r8d
+0x00007f7cad1df49a: cmp $0x1,%r10d
+0x00007f7cad1df49e: jle L0001  ;*lload_1
+                               ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@13 (line 64)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;for backward &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L22&quot;&gt;line 22&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L49&quot;&gt;line 49&lt;/a&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;0x00007fa34c559a98: mov %r8d,%ecx
+0x00007fa34c559a9b: dec %ecx  ;*isub
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@8 (line 73)
+0x00007fa34c559a9d: xor %r11d,%r11d
+0x00007fa34c559aa0: test %ecx,%ecx
+0x00007fa34c559aa2: jl L0006  ;*iflt
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@11 (line 73)
+0x00007fa34c559aa8: test %r8d,%r8d
+0x00007fa34c559aab: jbe L0007
+0x00007fa34c559ab1: cmp %r8d,%ecx
+0x00007fa34c559ab4: jae L0007
+0x00007fa34c559ab6: add $0xfffffffe,%r8d
+0x00007fa34c559aba: shl $0x3,%r10  ;*lload_1
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@14 (line 74)
+             L0000: movslq 0x10(%r10,%rcx,4),%r9
+0x00007fa34c559ac3: add %r9,%r11  ;*ladd
+                                  ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@22 (line 74)
+0x00007fa34c559ac6: dec %ecx  ;*iinc
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@24 (line 73)
+0x00007fa34c559ac8: cmp %r8d,%ecx
+0x00007fa34c559acb: jg L0000  ;*iflt
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@11 (line 73)
+0x00007fa34c559acd: cmp $0x2,%ecx
+0x00007fa34c559ad0: jle L0008
+0x00007fa34c559ad2: jmp L0002
+0x00007fa34c559ad4: nopl 0x0(%rax,%rax,1)
+0x00007fa34c559adc: data16 data16 xchg %ax,%ax
+             L0001: mov %rax,%r11  ;*lload_1
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@14 (line 74)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;perf-analysis&quot;&gt;perf analysis&lt;/h2&gt;
+
+&lt;p&gt;could that be the source of the performance difference?&lt;/p&gt;
+
+&lt;p&gt;looking at the result of perfasm for &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/perfasm-forward.txt&quot;&gt;forward&lt;/a&gt;  and &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/perfasm-backward.txt&quot;&gt;backward&lt;/a&gt; it does not look like it.&lt;/p&gt;
+
+&lt;p&gt;there is though some % difference for the unrolled part of the loop.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/perfasm-forward.txt#L45&quot;&gt;frontward&lt;/a&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;  3.71%    3.16%  ││││↗     0x00007fa8d0bcd920: movslq 0x10(%r11,%r8,4),%r9
+  1.68%    1.46%  │││││     0x00007fa8d0bcd925: add    %rax,%r9
+  0.43%    0.38%  │││││     0x00007fa8d0bcd928: movslq %r8d,%rcx
+  2.12%    2.11%  │││││     0x00007fa8d0bcd92b: movslq 0x1c(%r11,%rcx,4),%rax
+  3.52%    3.02%  │││││     0x00007fa8d0bcd930: movslq 0x14(%r11,%rcx,4),%rdi
+  1.74%    1.14%  │││││     0x00007fa8d0bcd935: movslq 0x18(%r11,%rcx,4),%rcx
+  0.34%    0.52%  │││││     0x00007fa8d0bcd93a: add    %r9,%rdi
+  2.26%    1.86%  │││││     0x00007fa8d0bcd93d: add    %rdi,%rcx
+  3.85%    3.53%  │││││     0x00007fa8d0bcd940: add    %rcx,%rax          ;*ladd
+                  │││││                                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@21 (line 64)
+  1.99%    1.70%  │││││     0x00007fa8d0bcd943: add    $0x4,%r8d          ;*iinc
+                  │││││                                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@23 (line 63)
+  0.21%    0.32%  │││││     0x00007fa8d0bcd947: cmp    %r10d,%r8d
+                  ││││╰     0x00007fa8d0bcd94a: jl     0x00007fa8d0bcd920  ;*if_icmpge                
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;for &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/perfasm-backward.txt#L50&quot;&gt;backward&lt;/a&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;  0.11%           │││ │↗     0x00007fbab51f4be0: mov    %rax,%r11          ;*lload_1
+                  │││ ││                                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@14 (line 74)
+  3.41%    3.05%  │││ ↘│     0x00007fbab51f4be3: movslq 0x10(%r10,%rcx,4),%r8
+  4.46%    4.11%  │││  │     0x00007fbab51f4be8: movslq 0xc(%r10,%rcx,4),%r9
+  0.38%    0.43%  │││  │     0x00007fbab51f4bed: movslq 0x8(%r10,%rcx,4),%rbx
+  0.90%    0.96%  │││  │     0x00007fbab51f4bf2: movslq 0x4(%r10,%rcx,4),%rax
+  2.13%    2.54%  │││  │     0x00007fbab51f4bf7: add    %r11,%r8
+  5.53%    5.61%  │││  │     0x00007fbab51f4bfa: add    %r8,%r9
+  3.49%    4.52%  │││  │     0x00007fbab51f4bfd: add    %r9,%rbx
+  7.58%    7.83%  │││  │     0x00007fbab51f4c00: add    %rbx,%rax          ;*ladd
+                  │││  │                                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@22 (line 74)
+  7.76%    8.00%  │││  │     0x00007fbab51f4c03: add    $0xfffffffc,%ecx   ;*iinc
+                  │││  │                                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@24 (line 73)
+  0.03%    0.01%  │││  │     0x00007fbab51f4c06: cmp    $0x2,%ecx
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;look at those 7% in the backward results.&lt;/p&gt;
+
+&lt;h3 id=&quot;why&quot;&gt;why?&lt;/h3&gt;
+
+&lt;p&gt;It’s unlikely that the adds cost that much, they either have been stalled or invalidated following a branch misprediction.&lt;/p&gt;
+
+&lt;p&gt;Hard to guess there looking a the perf number &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/perf-forward.txt&quot;&gt;forward&lt;/a&gt;, &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/perf-backward.txt&quot;&gt;backward&lt;/a&gt; forward has slightly less branch prediction misses.
+Is it enough to explain the difference, to be honest, I do not really know.&lt;/p&gt;
+
+&lt;p&gt;Time to give up on that one,
+is the branching more complicated? is the going in reverse not playing nice with the cpu?
+something I would have missed?&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Never believe a performance assertion without a good rationale&lt;/li&gt;
+  &lt;li&gt;Never believe a rational without reproducible experiment that supports it&lt;/li&gt;
+  &lt;li&gt;Never believe a benchmark without looking in depth at what is actually benchmarked&lt;/li&gt;
+  &lt;li&gt;Do not deduce performance implication from looking a the bytecode&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;And no, reverse loops are not faster than regular loops - caveats the result is only applicable to a loop that adds numbers from an array, any generalisation of the results is at your own risk :) -.&lt;/p&gt;
+
+&lt;p&gt;If you have an idea as to what explain the difference please leave a comment, Thanks.&lt;/p&gt;
+</description>
+        <pubDate>Thu, 15 Jun 2017 00:00:00 +0100</pubDate>
+        <link>http://arnaudroger.github.io/blog/2017/06/15/forward-vs-backward-loop.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2017/06/15/forward-vs-backward-loop.html</guid>
+        
+        
+      </item>
+    
     
     
       <item>
@@ -1650,252 +2017,6 @@ java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s
         <pubDate>Mon, 19 Sep 2016 00:00:00 +0100</pubDate>
         <link>http://arnaudroger.github.io/blog/2016/09/19/consumer-in-place-of-returning-list.html</link>
         <guid isPermaLink="true">http://arnaudroger.github.io/blog/2016/09/19/consumer-in-place-of-returning-list.html</guid>
-        
-        
-      </item>
-    
-    
-    
-      <item>
-        <title>Jigsaw Maven Integration</title>
-        <description>&lt;h1 id=&quot;update-24th-of-march-2017&quot;&gt;Update 24th of March 2017&lt;/h1&gt;
-
-&lt;p&gt;There seems to be quite a bit of interest on the subject, if you don’t find the answer to what you are looking for
-don’t hesitate to leave a comment and if I know the answer I’ll update the page so that everybody else can benefit from it.&lt;/p&gt;
-
-&lt;h1 id=&quot;update-20th-of-february-2017&quot;&gt;Update 20th of February 2017&lt;/h1&gt;
-
-&lt;p&gt;Maven 3.3.9 does not seem to work very well with java 9, Maven 3.2.5 is fine. 
-seems to be some cglib access, there should be a way to open the package if I knew which one was failing.&lt;/p&gt;
-
-&lt;p&gt;To run the test with mockito&lt;/p&gt;
-
-&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;plugin&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.apache.maven.plugins&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;maven-surefire-plugin&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
-
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;configuration&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;argLine&amp;gt;&lt;/span&gt;--add-opens java.base/java.lang=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/argLine&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/configuration&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/plugin&amp;gt;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;all the 
-&lt;code class=&quot;highlighter-rouge&quot;&gt;-XaddExports:java.base/sun.nio.ch=ALL-UNNAMED&lt;/code&gt;
-should now be replaced by 
-&lt;code class=&quot;highlighter-rouge&quot;&gt;--add-opens java.base/sun.nio.ch=ALL-UNNAMED&lt;/code&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;update-2nd-of-november-2016&quot;&gt;Update 2nd of November 2016&lt;/h1&gt;
-
-&lt;p&gt;the Maven plugin 3.6.0 has been officially release with jigsaw support.&lt;/p&gt;
-
-&lt;p&gt;Gave it a quick try and I have some issues running/compiling the tests.
-seems that the test might need a module-info.java.&lt;/p&gt;
-
-&lt;p&gt;Will update when I have more info.&lt;/p&gt;
-
-&lt;p&gt;Also note that&lt;/p&gt;
-
-&lt;h1 id=&quot;maven-building-java-9-ea-with-jigsaw&quot;&gt;Maven building java 9-ea with jigsaw&lt;/h1&gt;
-
-&lt;p&gt;If you don’t have a module-info.java then you don’t need to change anything.&lt;/p&gt;
-
-&lt;h2 id=&quot;state-of-maven-integration&quot;&gt;State of maven integration&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://cwiki.apache.org/confluence/display/MAVEN/Java+9+-+Jigsaw&quot;&gt;Maven - Java 9 Jigsaw&lt;/a&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;maven-compiler-plugin&quot;&gt;maven-compiler-plugin&lt;/h3&gt;
-
-&lt;p&gt;The maven-compiler-plugin on the branch maven-compiler-plugin_jigsaw-ea integrates with javac 9.
-There is no current release.&lt;/p&gt;
-
-&lt;h4 id=&quot;checkout&quot;&gt;checkout&lt;/h4&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;svn co http://svn.apache.org/repos/asf/maven/plugins/branches/maven-compiler-plugin_jigsaw-ea
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;build&quot;&gt;build&lt;/h3&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;cd maven-compiler-plugin_jigsaw-ea
-mvn clean install
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;you can now use the plugin from your local repo.&lt;/p&gt;
-
-&lt;p&gt;I also have a version built available by adding the following to your pom&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-xml&quot; data-lang=&quot;xml&quot;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;pluginRepositories&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;pluginRepository&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;id&amp;gt;&lt;/span&gt;arnaudroger-maven-plugin-repository&lt;span class=&quot;nt&quot;&gt;&amp;lt;/id&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;url&amp;gt;&lt;/span&gt;https://arnaudroger.github.io/maven&lt;span class=&quot;nt&quot;&gt;&amp;lt;/url&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/pluginRepository&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/pluginRepositories&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;h3 id=&quot;profile&quot;&gt;profile&lt;/h3&gt;
-
-&lt;p&gt;all you need to do now is to add a profile for jdk 9-ea with that plugin.
-You will also need to overwrite the asm dependency to 6.0_ALPHA to support the new bytecode version.&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-xml&quot; data-lang=&quot;xml&quot;&gt;   &lt;span class=&quot;nt&quot;&gt;&amp;lt;profile&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;id&amp;gt;&lt;/span&gt;jdk19&lt;span class=&quot;nt&quot;&gt;&amp;lt;/id&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;activation&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;jdk&amp;gt;&lt;/span&gt;9-ea&lt;span class=&quot;nt&quot;&gt;&amp;lt;/jdk&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/activation&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;build&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;plugins&amp;gt;&lt;/span&gt;
-                &lt;span class=&quot;nt&quot;&gt;&amp;lt;plugin&amp;gt;&lt;/span&gt;
-                    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.apache.maven.plugins&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
-                    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;maven-compiler-plugin&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
-                    &lt;span class=&quot;nt&quot;&gt;&amp;lt;version&amp;gt;&lt;/span&gt;3.6-jigsaw-SNAPSHOT&lt;span class=&quot;nt&quot;&gt;&amp;lt;/version&amp;gt;&lt;/span&gt;
-                    &lt;span class=&quot;nt&quot;&gt;&amp;lt;configuration&amp;gt;&lt;/span&gt;
-                        &lt;span class=&quot;nt&quot;&gt;&amp;lt;source&amp;gt;&lt;/span&gt;9&lt;span class=&quot;nt&quot;&gt;&amp;lt;/source&amp;gt;&lt;/span&gt;
-                        &lt;span class=&quot;nt&quot;&gt;&amp;lt;target&amp;gt;&lt;/span&gt;9&lt;span class=&quot;nt&quot;&gt;&amp;lt;/target&amp;gt;&lt;/span&gt;
-                    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/configuration&amp;gt;&lt;/span&gt;
-                    &lt;span class=&quot;nt&quot;&gt;&amp;lt;dependencies&amp;gt;&lt;/span&gt;
-                        &lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
-                            &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.ow2.asm&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
-                            &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;asm&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
-                            &lt;span class=&quot;nt&quot;&gt;&amp;lt;version&amp;gt;&lt;/span&gt;6.0_ALPHA&lt;span class=&quot;nt&quot;&gt;&amp;lt;/version&amp;gt;&lt;/span&gt;
-                        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
-                    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependencies&amp;gt;&lt;/span&gt;
-                &lt;span class=&quot;nt&quot;&gt;&amp;lt;/plugin&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;/plugins&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/build&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/profile&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;h2 id=&quot;module-infojava&quot;&gt;module-info.java&lt;/h2&gt;
-
-&lt;p&gt;The jigsaw maven-compiler-plugin will compile will switch to the modular build if module-info.java is present.&lt;/p&gt;
-
-&lt;p&gt;You can find more info at &lt;a href=&quot;http://openjdk.java.net/projects/jigsaw/quick-start&quot;&gt;Jigsaw QuickStart&lt;/a&gt;.
-start with a empty one see what you need to import.&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;module&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mypackage&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;et Voila!&lt;/p&gt;
-
-&lt;h2 id=&quot;potential-troubles&quot;&gt;Potential troubles&lt;/h2&gt;
-
-&lt;h3 id=&quot;classloaders&quot;&gt;ClassLoaders&lt;/h3&gt;
-
-&lt;p&gt;The ClassLoader hierarchy is slightly changed. When you start your application you won’t get an URLClassLoader. if your
-code rely on that … your will need to change it.&lt;/p&gt;
-
-&lt;h2 id=&quot;third-party-library&quot;&gt;third party library&lt;/h2&gt;
-
-&lt;p&gt;Some third-party libraries depend on part of the jre that is no more accessible. You might need to add instruction
-to export those when running the unit tests or compiling - for preprocessor, note that you will need to
-then fork javac.&lt;/p&gt;
-
-&lt;p&gt;for the test&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-xml&quot; data-lang=&quot;xml&quot;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;profile&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;id&amp;gt;&lt;/span&gt;jdk19&lt;span class=&quot;nt&quot;&gt;&amp;lt;/id&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;activation&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;jdk&amp;gt;&lt;/span&gt;9-ea&lt;span class=&quot;nt&quot;&gt;&amp;lt;/jdk&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/activation&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;build&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;plugins&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;plugin&amp;gt;&lt;/span&gt;
-                &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.apache.maven.plugins&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
-                &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;maven-surefire-plugin&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
-                &lt;span class=&quot;nt&quot;&gt;&amp;lt;configuration&amp;gt;&lt;/span&gt;
-                    &lt;span class=&quot;nt&quot;&gt;&amp;lt;argLine&amp;gt;&lt;/span&gt;-XaddExports:java.base/sun.nio.ch=ALL-UNNAMED -XaddExports:jdk.unsupported/sun.misc=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/argLine&amp;gt;&lt;/span&gt;
-                &lt;span class=&quot;nt&quot;&gt;&amp;lt;/configuration&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;/plugin&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/plugins&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/build&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/profile&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;for the javac&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-xml&quot; data-lang=&quot;xml&quot;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;plugin&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.apache.maven.plugins&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;maven-compiler-plugin&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;version&amp;gt;&lt;/span&gt;3.6-jigsaw-SNAPSHOT&lt;span class=&quot;nt&quot;&gt;&amp;lt;/version&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;configuration&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;source&amp;gt;&lt;/span&gt;9&lt;span class=&quot;nt&quot;&gt;&amp;lt;/source&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;target&amp;gt;&lt;/span&gt;9&lt;span class=&quot;nt&quot;&gt;&amp;lt;/target&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;fork&amp;gt;&lt;/span&gt;true&lt;span class=&quot;nt&quot;&gt;&amp;lt;/fork&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;compilerArgs&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/compilerArgs&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/configuration&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;dependencies&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.ow2.asm&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;asm&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;version&amp;gt;&lt;/span&gt;6.0_ALPHA&lt;span class=&quot;nt&quot;&gt;&amp;lt;/version&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependencies&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/plugin&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;you can verify which dependencies a jar has by using jdeps&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;jdeps ~/.m2/repository/io/netty/netty-all/4.0.39.Final/netty-all-4.0.39.Final.jar&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;### netty
-You will need to export the following packages to run the code&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;java.base/sun.nio.ch&lt;/li&gt;
-  &lt;li&gt;java.base/sun.security.util&lt;/li&gt;
-  &lt;li&gt;java.base/sun.security.x509&lt;/li&gt;
-  &lt;li&gt;jdk.unsupported/sun.misc&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;beware though that running in travis-ci it failed with the direct buffer, I had to deactivate the native epoll support.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;-Dcassandra.native.epoll.enabled=false
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;lombok&quot;&gt;Lombok&lt;/h3&gt;
-&lt;p&gt;Currently as of 1.16.10 Lombok still has issues with java9 as it relies on classes that are not present anymore.&lt;/p&gt;
-
-&lt;p&gt;To get the preprocessor as far as you can you will need to add the following to the maven-compiler-plugin configuration.&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-xml&quot; data-lang=&quot;xml&quot;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;compilerArgs&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;arg&amp;gt;&lt;/span&gt;-J-XaddExports:jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED&lt;span class=&quot;nt&quot;&gt;&amp;lt;/arg&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/compilerArgs&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;h3 id=&quot;osgi-bundle&quot;&gt;Osgi bundle&lt;/h3&gt;
-
-&lt;p&gt;BND seems to work pretty well, there is only 2 config to add.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;_noee, it does not recognise the java version and can’t generate the Require-Capabilities.&lt;/li&gt;
-  &lt;li&gt;_failok, it fails on the module-info.class being at the root package.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-xml&quot; data-lang=&quot;xml&quot;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;plugin&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.apache.felix&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;maven-bundle-plugin&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;extensions&amp;gt;&lt;/span&gt;true&lt;span class=&quot;nt&quot;&gt;&amp;lt;/extensions&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;version&amp;gt;&lt;/span&gt;3.2.0&lt;span class=&quot;nt&quot;&gt;&amp;lt;/version&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;configuration&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;instructions&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;_noee&amp;gt;&lt;/span&gt;true&lt;span class=&quot;nt&quot;&gt;&amp;lt;/_noee&amp;gt;&lt;/span&gt;
-            &lt;span class=&quot;nt&quot;&gt;&amp;lt;_failok&amp;gt;&lt;/span&gt;true&lt;span class=&quot;nt&quot;&gt;&amp;lt;/_failok&amp;gt;&lt;/span&gt;
-        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/instructions&amp;gt;&lt;/span&gt;
-    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/configuration&amp;gt;&lt;/span&gt;
-&lt;span class=&quot;nt&quot;&gt;&amp;lt;/plugin&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-</description>
-        <pubDate>Tue, 09 Aug 2016 00:00:00 +0100</pubDate>
-        <link>http://arnaudroger.github.io/blog/2016/08/09/jigsaw-maven-integration.html</link>
-        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2016/08/09/jigsaw-maven-integration.html</guid>
         
         
       </item>

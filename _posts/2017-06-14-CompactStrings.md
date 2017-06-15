@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Evolution of String to Java 9 Compact Strings and Indify String Concatenation
+title: Evolution of Strings in Java to Compact Strings and Indify String Concatenation
 ---
 
 Java 9 comes with 2 major changes on how String behaves to lower memory usage and improve performance.

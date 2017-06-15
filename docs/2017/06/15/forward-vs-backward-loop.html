@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Why reverse loops are not faster</title>
+  <meta name="description" content="TL;DR Reverse loops are not faster, using the byte code as an indication of performance is a really bad idea. Benchmark!">
+
+  <link rel="stylesheet" href="/blog/assets/main.css">
+  <link rel="canonical" href="http://arnaudroger.github.io/blog/2017/06/15/forward-vs-backward-loop.html">
+  <link rel="alternate" type="application/rss+xml" title="Eat Sleep Code Repeat." href="/blog/feed.xml">
+  
+  
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/blog/">Eat Sleep Code Repeat.</a>
+
+    <nav class="site-nav">
+      <span class="menu-icon">
+        <svg viewBox="0 0 18 15" width="18px" height="15px">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </span>
+
+      <div class="trigger">
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+    <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">Why reverse loops are not faster</h1>
+        <p class="post-meta"><time datetime="2017-06-15T00:00:00+01:00" itemprop="datePublished">Jun 15, 2017</time></p>
+    </header>
+
+    <div class="post-content" itemprop="articleBody">
+        <h1 id="tldr">TL;DR</h1>
+<p>Reverse loops are not faster, using the byte code as an indication of performance is a really bad idea. Benchmark!</p>
+
+<h1 id="intro">Intro</h1>
+
+<p>On the 13th of June <a href="https://medium.com/@TravCav">@TravCav</a> published on medium an <a href="https://medium.com/@TravCav/why-reverse-loops-are-faster-a09d65473006">article</a> arguing that reverse loops are faster than a regular loop.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+    <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">i</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+<p>was slower than</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span><span class="o">--)</span> <span class="o">{</span>
+    <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">i</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p><img src="https://i.imgflip.com/1qxjf1.jpg" alt="Face palm" /></p>
+
+<p>His analysis is based on looking at the byte generated, but unfortunately, it does not provide any benchmark to confirm his hypothesis.</p>
+
+<p>I don’t think it is the first time I heard about that idea, it generally comes from the belief that a comparison to 0 is faster.
+That might be true or might have been true who knows.</p>
+
+<p>Is it true now? is it even relevant?</p>
+
+<p>Most of the CPUs can execute multiple instructions in parallel, the main cost of a jump is when the branch prediction is wrong.
+Even if a cmp with 0 is faster, the author assumes that the bytecode is relevant to what the CPU will execute.
+Big news it is not, the JIT does a lot of transformation and making an assumption on what gets executed from the bytecode is ludicrous.
+For example:</p>
+
+<blockquote>
+  <p>After looping back to line 17, the array object has to get loaded back onto the stack at line 18, and the length has to be retrieved again on line 19. And it does this for every loop. Over and over and over…</p>
+</blockquote>
+
+<p>No it does not, the JIT is smart enough to figure out that the length does not vary and it will load it only once. It will also remove the boundary check for that matter.</p>
+
+<p><img src="https://i.imgflip.com/1qxjiu.jpg" alt="Jmh" /></p>
+
+<h2 id="the-jmh-benchmark">The jmh benchmark</h2>
+
+<p>Anyway, let’s get some real <a href="https://github.com/arnaudroger/benchmark-loop">benchmark</a> in there. 
+The <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/src/main/java/io/github/arnaudroger/LoopBenchmark.java">jmh code</a> is as follows:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@State</span><span class="o">(</span><span class="n">Scope</span><span class="o">.</span><span class="na">Benchmark</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">LoopBenchmark</span> <span class="o">{</span>
+
+    <span class="kd">private</span> <span class="kt">int</span><span class="o">[]</span> <span class="n">numbers</span><span class="o">;</span>
+ 
+    <span class="nd">@Param</span><span class="o">(</span><span class="n">value</span> <span class="o">=</span> <span class="o">{</span><span class="s">"1"</span><span class="o">,</span> <span class="s">"10"</span><span class="o">,</span> <span class="s">"1000"</span><span class="o">,</span> <span class="s">"1000000"</span><span class="o">})</span>
+    <span class="kd">private</span> <span class="kt">int</span> <span class="n">size</span><span class="o">;</span>
+    <span class="nd">@Setup</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">setUp</span><span class="o">()</span> <span class="o">{</span>
+        <span class="n">numbers</span> <span class="o">=</span> <span class="k">new</span> <span class="kt">int</span><span class="o">[</span><span class="n">size</span><span class="o">];</span>
+        <span class="n">Random</span> <span class="n">r</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Random</span><span class="o">();</span>
+        <span class="k">for</span><span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">size</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="n">numbers</span><span class="o">[</span><span class="n">i</span><span class="o">]</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="na">nextInt</span><span class="o">();</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+    
+    <span class="nd">@Benchmark</span>
+    <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">long</span> <span class="nf">testForwardLoop</span><span class="o">()</span> <span class="o">{</span>
+        <span class="kt">long</span> <span class="n">l</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+        <span class="k">for</span><span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">numbers</span><span class="o">.</span><span class="na">length</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="n">l</span> <span class="o">+=</span> <span class="n">numbers</span><span class="o">[</span><span class="n">i</span><span class="o">];</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="n">l</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Benchmark</span>
+    <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">long</span> <span class="nf">testBackwardLoop</span><span class="o">()</span> <span class="o">{</span>
+        <span class="kt">long</span> <span class="n">l</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+        <span class="k">for</span><span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">numbers</span><span class="o">.</span><span class="na">length</span> <span class="o">-</span> <span class="mi">1</span><span class="o">;</span> <span class="n">i</span> <span class="o">&gt;=</span><span class="mi">0</span><span class="o">;</span> <span class="n">i</span><span class="o">--)</span> <span class="o">{</span>
+            <span class="n">l</span> <span class="o">+=</span> <span class="n">numbers</span><span class="o">[</span><span class="n">i</span><span class="o">];</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="n">l</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p>We initialise an array of int with a random number.
+Each benchmark will sum the array, one with a regular - forward - loop, the other with a reverse - backward - loop.</p>
+
+<p>Compile, run</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>mvn clean install
+java -jar target/benchmarks.jar
+</code></pre>
+</div>
+<h2 id="the-results">The results</h2>
+
+<p>and here are the <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/jmh-result.csv">results</a> - the higher the better -:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Size</th>
+      <th style="text-align: right">1</th>
+      <th style="text-align: right">10</th>
+      <th style="text-align: right">1000</th>
+      <th style="text-align: right">1000000</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Backward</td>
+      <td style="text-align: right">240665052</td>
+      <td style="text-align: right">146681879</td>
+      <td style="text-align: right">3686316</td>
+      <td style="text-align: right">3761</td>
+    </tr>
+    <tr>
+      <td>Forward</td>
+      <td style="text-align: right">249774234</td>
+      <td style="text-align: right">154017527</td>
+      <td style="text-align: right">3722753</td>
+      <td style="text-align: right">3763</td>
+    </tr>
+    <tr>
+      <td>(F - B/F)</td>
+      <td style="text-align: right">3.65%</td>
+      <td style="text-align: right">4.76%</td>
+      <td style="text-align: right">0.98%</td>
+      <td style="text-align: right">0.06%</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The reverse loop is 3 to 4% slower on small array the difference reduces when the size of the array increases.</p>
+
+<p><strong>Contrary to the original post, regular loop is faster.</strong></p>
+
+<h2 id="the-asm">the asm</h2>
+
+<p>Lets have a deeper look at what happens with an array of size 10 by looking at asm generated by the jit for <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt">forward</a></p>
+
+<h3 id="forward-asm">forward asm</h3>
+<p>We can see the core loop from <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L63">line 63</a> to <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L69">line 69</a></p>
+
+<pre><code class="language-asm">             L0002: movslq 0x10(%r11,%r8,4),%r10
+0x00007f7cad1df4d9: add %r10,%rax  ;*ladd
+                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@21 (line 64)
+0x00007f7cad1df4dc: inc %r8d  ;*iinc
+                              ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@23 (line 63)
+0x00007f7cad1df4df: cmp %ebx,%r8d
+0x00007f7cad1df4e2: jl L0002  ;*if_icmpge
+                              ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@10 (line 63)
+</code></pre>
+<p>the exit of the method <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L71">line 71</a> to <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L75">line 75</a></p>
+
+<pre><code class="language-asm">             L0003: add $0x10,%rsp
+0x00007f7cad1df4e8: pop %rbp
+0x00007f7cad1df4e9: test %eax,0x17b81b11(%rip)  # 0x00007f7cc4d61000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x00007f7cad1df4ef: retq
+</code></pre>
+
+<p>but what is happening from <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L44">line 44</a> to <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#58">line 58</a> ?</p>
+
+<pre><code class="language-asm">             L0000: movslq 0x10(%r11,%r8,4),%r9
+0x00007f7cad1df4a5: add %rax,%r9
+0x00007f7cad1df4a8: movslq %r8d,%rcx
+0x00007f7cad1df4ab: movslq 0x1c(%r11,%rcx,4),%rax
+0x00007f7cad1df4b0: movslq 0x14(%r11,%rcx,4),%rdi
+0x00007f7cad1df4b5: movslq 0x18(%r11,%rcx,4),%rcx
+0x00007f7cad1df4ba: add %r9,%rdi
+0x00007f7cad1df4bd: add %rdi,%rcx
+0x00007f7cad1df4c0: add %rcx,%rax  ;*ladd
+                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@21 (line 64)
+0x00007f7cad1df4c3: add $0x4,%r8d  ;*iinc
+                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@23 (line 63)
+0x00007f7cad1df4c7: cmp %r10d,%r8d
+0x00007f7cad1df4ca: jl L0000  ;*if_icmpge
+                              ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@10 (line 63)                                  
+</code></pre>
+<p>it’s looping over 4 elements at a time and adding them together in one pass. The loop has been unrolled until there are less that 4 elements available falling back on the one by one loop on <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L63">line 63</a>.</p>
+
+<h3 id="backward-asm">backward asm</h3>
+<p>and <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt">backward</a>.</p>
+
+<p>We can see the core loop from <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L68">line 68</a> to <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L74">line 74</a></p>
+
+<pre><code class="language-asm">             L0004: movslq 0x10(%r10,%rcx,4),%r11
+0x00007fa34c559b15: add %r11,%rax  ;*ladd
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@22 (line 74)
+0x00007fa34c559b18: dec %ecx  ;*iinc
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@24 (line 73)
+0x00007fa34c559b1a: cmp $0xffffffff,%ecx
+0x00007fa34c559b1d: jg L0004  ;*iflt
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@11 (line 73)
+</code></pre>
+<p>very similar the forward version except for the cmp and dec instead of inc.</p>
+
+<p>the exit of the method <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L66">line 66</a> to <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L80">line 80</a></p>
+
+<pre><code class="language-asm">             L0005: add $0x20,%rsp
+0x00007fa34c559b23: pop %rbp
+0x00007fa34c559b24: test %eax,0x15e7a4d6(%rip)  # 0x00007fa3623d4000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x00007fa34c559b2a: retq
+</code></pre>
+
+<p>and from <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L49">line 49</a> to <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#64">line 64</a>?</p>
+
+<pre><code class="language-asm">             L0001: mov %rax,%r11  ;*lload_1
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@14 (line 74)
+             L0002: movslq 0x10(%r10,%rcx,4),%r8
+0x00007fa34c559ae8: movslq 0xc(%r10,%rcx,4),%r9
+0x00007fa34c559aed: movslq 0x8(%r10,%rcx,4),%rbx
+0x00007fa34c559af2: movslq 0x4(%r10,%rcx,4),%rax
+0x00007fa34c559af7: add %r11,%r8
+0x00007fa34c559afa: add %r8,%r9
+0x00007fa34c559afd: add %r9,%rbx
+0x00007fa34c559b00: add %rbx,%rax  ;*ladd
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@22 (line 74)
+0x00007fa34c559b03: add $0xfffffffc,%ecx  ;*iinc
+                                          ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@24 (line 73)
+0x00007fa34c559b06: cmp $0x2,%ecx
+0x00007fa34c559b09: jg L0001  ;*iflt
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@11 (line 73)                                
+</code></pre>
+
+<p>same as for forward adding 4 elements at a time.</p>
+
+<p>but the logic to get there is slighlty more complicated in the backward loop</p>
+
+<p>for forward <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L22">line 22</a> to <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-forward.txt#L43">line 43</a> after getting the array length</p>
+
+<pre><code class="language-asm">0x00007f7cad1df458: test %ebx,%ebx
+0x00007f7cad1df45a: jle L0004  ;*if_icmpge
+                               ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@10 (line 63)
+0x00007f7cad1df460: test %ebx,%ebx
+0x00007f7cad1df462: jbe L0005
+0x00007f7cad1df468: mov %ebx,%r9d
+0x00007f7cad1df46b: dec %r9d
+0x00007f7cad1df46e: cmp %ebx,%r9d
+0x00007f7cad1df471: jae L0005  ;*lload_1
+                               ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@13 (line 64)
+0x00007f7cad1df477: movslq 0x10(%r12,%r11,8),%rax  ;*i2l
+                                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@20 (line 64)
+0x00007f7cad1df47c: mov %ebx,%r10d
+0x00007f7cad1df47f: add $0xfffffffd,%r10d
+0x00007f7cad1df483: shl $0x3,%r11
+0x00007f7cad1df487: mov $0x80000000,%r8d
+0x00007f7cad1df48d: cmp %r10d,%r9d
+0x00007f7cad1df490: cmovl %r8d,%r10d
+0x00007f7cad1df494: mov $0x1,%r8d
+0x00007f7cad1df49a: cmp $0x1,%r10d
+0x00007f7cad1df49e: jle L0001  ;*lload_1
+                               ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@13 (line 64)
+</code></pre>
+
+<p>for backward <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L22">line 22</a> to <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/asm-backward.txt#L49">line 49</a></p>
+
+<pre><code class="language-asm">0x00007fa34c559a98: mov %r8d,%ecx
+0x00007fa34c559a9b: dec %ecx  ;*isub
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@8 (line 73)
+0x00007fa34c559a9d: xor %r11d,%r11d
+0x00007fa34c559aa0: test %ecx,%ecx
+0x00007fa34c559aa2: jl L0006  ;*iflt
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@11 (line 73)
+0x00007fa34c559aa8: test %r8d,%r8d
+0x00007fa34c559aab: jbe L0007
+0x00007fa34c559ab1: cmp %r8d,%ecx
+0x00007fa34c559ab4: jae L0007
+0x00007fa34c559ab6: add $0xfffffffe,%r8d
+0x00007fa34c559aba: shl $0x3,%r10  ;*lload_1
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@14 (line 74)
+             L0000: movslq 0x10(%r10,%rcx,4),%r9
+0x00007fa34c559ac3: add %r9,%r11  ;*ladd
+                                  ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@22 (line 74)
+0x00007fa34c559ac6: dec %ecx  ;*iinc
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@24 (line 73)
+0x00007fa34c559ac8: cmp %r8d,%ecx
+0x00007fa34c559acb: jg L0000  ;*iflt
+                              ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@11 (line 73)
+0x00007fa34c559acd: cmp $0x2,%ecx
+0x00007fa34c559ad0: jle L0008
+0x00007fa34c559ad2: jmp L0002
+0x00007fa34c559ad4: nopl 0x0(%rax,%rax,1)
+0x00007fa34c559adc: data16 data16 xchg %ax,%ax
+             L0001: mov %rax,%r11  ;*lload_1
+                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@14 (line 74)
+</code></pre>
+
+<h2 id="perf-analysis">perf analysis</h2>
+
+<p>could that be the source of the performance difference?</p>
+
+<p>looking at the result of perfasm for <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/perfasm-forward.txt">forward</a>  and <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/perfasm-backward.txt">backward</a> it does not look like it.</p>
+
+<p>there is though some % difference for the unrolled part of the loop.</p>
+
+<p><a href="https://github.com/arnaudroger/benchmark-loop/blob/master/perfasm-forward.txt#L45">frontward</a></p>
+<pre><code class="language-asm">  3.71%    3.16%  ││││↗     0x00007fa8d0bcd920: movslq 0x10(%r11,%r8,4),%r9
+  1.68%    1.46%  │││││     0x00007fa8d0bcd925: add    %rax,%r9
+  0.43%    0.38%  │││││     0x00007fa8d0bcd928: movslq %r8d,%rcx
+  2.12%    2.11%  │││││     0x00007fa8d0bcd92b: movslq 0x1c(%r11,%rcx,4),%rax
+  3.52%    3.02%  │││││     0x00007fa8d0bcd930: movslq 0x14(%r11,%rcx,4),%rdi
+  1.74%    1.14%  │││││     0x00007fa8d0bcd935: movslq 0x18(%r11,%rcx,4),%rcx
+  0.34%    0.52%  │││││     0x00007fa8d0bcd93a: add    %r9,%rdi
+  2.26%    1.86%  │││││     0x00007fa8d0bcd93d: add    %rdi,%rcx
+  3.85%    3.53%  │││││     0x00007fa8d0bcd940: add    %rcx,%rax          ;*ladd
+                  │││││                                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@21 (line 64)
+  1.99%    1.70%  │││││     0x00007fa8d0bcd943: add    $0x4,%r8d          ;*iinc
+                  │││││                                                   ; - io.github.arnaudroger.LoopBenchmark::testForwardLoop@23 (line 63)
+  0.21%    0.32%  │││││     0x00007fa8d0bcd947: cmp    %r10d,%r8d
+                  ││││╰     0x00007fa8d0bcd94a: jl     0x00007fa8d0bcd920  ;*if_icmpge                
+</code></pre>
+<p>for <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/perfasm-backward.txt#L50">backward</a></p>
+<pre><code class="language-asm">  0.11%           │││ │↗     0x00007fbab51f4be0: mov    %rax,%r11          ;*lload_1
+                  │││ ││                                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@14 (line 74)
+  3.41%    3.05%  │││ ↘│     0x00007fbab51f4be3: movslq 0x10(%r10,%rcx,4),%r8
+  4.46%    4.11%  │││  │     0x00007fbab51f4be8: movslq 0xc(%r10,%rcx,4),%r9
+  0.38%    0.43%  │││  │     0x00007fbab51f4bed: movslq 0x8(%r10,%rcx,4),%rbx
+  0.90%    0.96%  │││  │     0x00007fbab51f4bf2: movslq 0x4(%r10,%rcx,4),%rax
+  2.13%    2.54%  │││  │     0x00007fbab51f4bf7: add    %r11,%r8
+  5.53%    5.61%  │││  │     0x00007fbab51f4bfa: add    %r8,%r9
+  3.49%    4.52%  │││  │     0x00007fbab51f4bfd: add    %r9,%rbx
+  7.58%    7.83%  │││  │     0x00007fbab51f4c00: add    %rbx,%rax          ;*ladd
+                  │││  │                                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@22 (line 74)
+  7.76%    8.00%  │││  │     0x00007fbab51f4c03: add    $0xfffffffc,%ecx   ;*iinc
+                  │││  │                                                   ; - io.github.arnaudroger.LoopBenchmark::testBackwardLoop@24 (line 73)
+  0.03%    0.01%  │││  │     0x00007fbab51f4c06: cmp    $0x2,%ecx
+</code></pre>
+<p>look at those 7% in the backward results.</p>
+
+<h3 id="why">why?</h3>
+
+<p>It’s unlikely that the adds cost that much, they either have been stalled or invalidated following a branch misprediction.</p>
+
+<p>Hard to guess there looking a the perf number <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/perf-forward.txt">forward</a>, <a href="https://github.com/arnaudroger/benchmark-loop/blob/master/perf-backward.txt">backward</a> forward has slightly less branch prediction misses.
+Is it enough to explain the difference, to be honest, I do not really know.</p>
+
+<p>Time to give up on that one,
+is the branching more complicated? is the going in reverse not playing nice with the cpu?
+something I would have missed?</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<ul>
+  <li>Never believe a performance assertion without a good rationale</li>
+  <li>Never believe a rational without reproducible experiment that supports it</li>
+  <li>Never believe a benchmark without looking in depth at what is actually benchmarked</li>
+  <li>Do not deduce performance implication from looking a the bytecode</li>
+</ul>
+
+<p>And no, reverse loops are not faster than regular loops - caveats the result is only applicable to a loop that adds numbers from an array, any generalisation of the results is at your own risk :) -.</p>
+
+<p>If you have an idea as to what explain the difference please leave a comment, Thanks.</p>
+
+    </div>
+
+    <div class="PageNavigation">
+        
+        <a class="prev" href="/blog/2017/06/14/CompactStrings.html">&laquo; Evolution of Strings in Java to Compact Strings and Indify String Concatenation</a>
+        
+        
+    </div>
+
+
+    <div id="disqus_thread"></div>
+<script>
+
+/**
+ *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+ *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables */
+/*
+var disqus_config = function () {
+    this.page.url = 'http://arnaudroger.github.io/blog/2017/06/15/forward-vs-backward-loop.html';  // Replace PAGE_URL with your page's canonical URL variable
+    this.page.identifier = '/2017/06/15/forward-vs-backward-loop'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+    var d = document, s = d.createElement('script');
+    s.src = '//arogerblog.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+    <div class="wrapper">
+
+        <h2 class="footer-heading">Eat Sleep Code Repeat.</h2>
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Eat Sleep Code Repeat.</li>
+                    <li><a href="mailto:arnaud.roger@gmail.com">arnaud.roger@gmail.com</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                <ul class="social-media-list">
+                    
+                    <li>
+                        <a href="https://github.com/arnaudroger"><span class="icon icon--github"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">arnaudroger</span></a>
+
+                    </li>
+                    
+
+                    
+                    <li>
+                        <a href="https://twitter.com/arnaudroger"><span class="icon icon--twitter"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username">arnaudroger</span></a>
+
+                    </li>
+                    
+                </ul>
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p>Rambling of an old java developer.</p>
+            </div>
+        </div>
+
+    </div>
+</footer>
+
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-83272639-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+
+  </body>
+
+</html>
