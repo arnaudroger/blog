@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 15 Jun 2017 17:28:52 +0100</pubDate>
-    <lastBuildDate>Thu, 15 Jun 2017 17:28:52 +0100</lastBuildDate>
+    <pubDate>Thu, 15 Jun 2017 17:31:23 +0100</pubDate>
+    <lastBuildDate>Thu, 15 Jun 2017 17:31:23 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -55,7 +55,7 @@ For example:&lt;/p&gt;
 
 &lt;h2 id=&quot;the-jmh-benchmark&quot;&gt;The jmh benchmark&lt;/h2&gt;
 
-&lt;p&gt;Anyway, let’s get some real &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop&quot;&gt;benchmark&lt;/a&gt; in there. 
+&lt;p&gt;Anyway, let’s get some &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop&quot;&gt;benchmarks&lt;/a&gt; in there. 
 The &lt;a href=&quot;https://github.com/arnaudroger/benchmark-loop/blob/master/src/main/java/io/github/arnaudroger/LoopBenchmark.java&quot;&gt;jmh code&lt;/a&gt; is as follows:&lt;/p&gt;
 
 &lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@State&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Scope&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Benchmark&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
