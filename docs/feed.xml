@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 16 Jun 2017 07:28:37 +0100</pubDate>
-    <lastBuildDate>Fri, 16 Jun 2017 07:28:37 +0100</lastBuildDate>
+    <pubDate>Fri, 16 Jun 2017 07:29:37 +0100</pubDate>
+    <lastBuildDate>Fri, 16 Jun 2017 07:29:37 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -157,7 +157,7 @@ java -jar target/benchmarks.jar
 &lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;java -jar target/benchmarks.jar -f 1 -psize&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;10 -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:+PrintAssembly&quot;&lt;/span&gt; testForwardLoop
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
-&lt;p&gt;You will the &lt;a href=&quot;https://github.com/AdoptOpenJDK/jitwatch/wiki/Building-hsdis&quot;&gt;hsdis&lt;/a&gt; library.
+&lt;p&gt;You will need the &lt;a href=&quot;https://github.com/AdoptOpenJDK/jitwatch/wiki/Building-hsdis&quot;&gt;hsdis&lt;/a&gt; library.
 Load the log through &lt;a href=&quot;https://github.com/AdoptOpenJDK/jitwatch&quot;&gt;JITWatch&lt;/a&gt;.&lt;/p&gt;
 
 &lt;h3 id=&quot;forward-asm&quot;&gt;forward asm&lt;/h3&gt;
