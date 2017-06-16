@@ -21,6 +21,7 @@ for (int i = 10; i >= 0; i--) {
     System.out.println(i);
 }
 ```
+*the code is from @TravCav [post](https://medium.com/@TravCav/why-reverse-loops-are-faster-a09d65473006), the loop should start at 9 not 10 as pointed on [reddit](https://www.reddit.com/r/java/comments/6hg530/why_reverse_loops_are_not_faster/diypz8n/?utm_content=permalink&utm_medium=front&utm_source=reddit&utm_name=java)* 
 
 ![Face palm](https://i.imgflip.com/1qxjf1.jpg)
 
@@ -44,7 +45,7 @@ No it does not, the JIT is smart enough to figure out that the length does not v
 
 ## The jmh benchmark
 
-Anyway, let's get some real [benchmark](https://github.com/arnaudroger/benchmark-loop) in there. 
+Anyway, let's get some [benchmarks](https://github.com/arnaudroger/benchmark-loop) in there. 
 The [jmh code](https://github.com/arnaudroger/benchmark-loop/blob/master/src/main/java/io/github/arnaudroger/LoopBenchmark.java) is as follows:
 
 ```java 

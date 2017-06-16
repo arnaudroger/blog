@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 15 Jun 2017 17:31:23 +0100</pubDate>
-    <lastBuildDate>Thu, 15 Jun 2017 17:31:23 +0100</lastBuildDate>
+    <pubDate>Fri, 16 Jun 2017 06:47:05 +0100</pubDate>
+    <lastBuildDate>Fri, 16 Jun 2017 06:47:05 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -30,6 +30,7 @@
 &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
+&lt;p&gt;&lt;em&gt;the code is from @TravCav &lt;a href=&quot;https://medium.com/@TravCav/why-reverse-loops-are-faster-a09d65473006&quot;&gt;post&lt;/a&gt;, the loop should start at 9 not 10 as pointed on &lt;a href=&quot;https://www.reddit.com/r/java/comments/6hg530/why_reverse_loops_are_not_faster/diypz8n/?utm_content=permalink&amp;amp;utm_medium=front&amp;amp;utm_source=reddit&amp;amp;utm_name=java&quot;&gt;reddit&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 
 &lt;p&gt;&lt;img src=&quot;https://i.imgflip.com/1qxjf1.jpg&quot; alt=&quot;Face palm&quot; /&gt;&lt;/p&gt;
 
