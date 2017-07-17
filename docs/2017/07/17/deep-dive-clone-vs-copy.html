@@ -258,7 +258,8 @@ The actual copy is done on <a href="https://github.com/arnaudroger/blog_samples/
 0x000000010b163ac8: retq
 </code></pre>
 
-<p><code class="highlighter-rouge">clone</code> will copy to the exact same length, but <code class="highlighter-rouge">Arrays.copyOf</code> allows us to copy an array to a different array length which complicates the different case to handle and increase the cost especially for small arrays.</p>
+<p><code class="highlighter-rouge">clone</code> will copy to the exact same length, but <code class="highlighter-rouge">Arrays.copyOf</code> allows us to copy an array to a different array length which complicates the different case to handle and increase the cost especially for small arrays.
+It seems that the jit is not able to leverage the fact that we are passing <code class="highlighter-rouge">original.length</code> as the newLength, if it were it could simplify the code and I would expect performance to be on par.</p>
 
 <h1 id="objects">Objects</h1>
 

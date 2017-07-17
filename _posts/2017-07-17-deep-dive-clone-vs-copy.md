@@ -199,7 +199,8 @@ The actual copy is done on [Line 79-80](https://github.com/arnaudroger/blog_samp
 0x000000010b163ac8: retq
 ```
 
-`clone` will copy to the exact same length, but `Arrays.copyOf` allows us to copy an array to a different array length which complicates the different case to handle and increase the cost especially for small arrays. 
+`clone` will copy to the exact same length, but `Arrays.copyOf` allows us to copy an array to a different array length which complicates the different case to handle and increase the cost especially for small arrays.
+It seems that the jit is not able to leverage the fact that we are passing `original.length` as the newLength, if it were it could simplify the code and I would expect performance to be on par.
 
 # Objects
 

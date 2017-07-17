@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 17 Jul 2017 11:15:55 +0100</pubDate>
-    <lastBuildDate>Mon, 17 Jul 2017 11:15:55 +0100</lastBuildDate>
+    <pubDate>Mon, 17 Jul 2017 11:36:41 +0100</pubDate>
+    <lastBuildDate>Mon, 17 Jul 2017 11:36:41 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -210,7 +210,8 @@ The actual copy is done on &lt;a href=&quot;https://github.com/arnaudroger/blog_
 0x000000010b163ac8: retq
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; will copy to the exact same length, but &lt;code class=&quot;highlighter-rouge&quot;&gt;Arrays.copyOf&lt;/code&gt; allows us to copy an array to a different array length which complicates the different case to handle and increase the cost especially for small arrays.&lt;/p&gt;
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; will copy to the exact same length, but &lt;code class=&quot;highlighter-rouge&quot;&gt;Arrays.copyOf&lt;/code&gt; allows us to copy an array to a different array length which complicates the different case to handle and increase the cost especially for small arrays.
+It seems that the jit is not able to leverage the fact that we are passing &lt;code class=&quot;highlighter-rouge&quot;&gt;original.length&lt;/code&gt; as the newLength, if it were it could simplify the code and I would expect performance to be on par.&lt;/p&gt;
 
 &lt;h1 id=&quot;objects&quot;&gt;Objects&lt;/h1&gt;
 
