@@ -30,7 +30,7 @@ There is only one way to find out, Let's benchmark.
 * Clone is slower for small objects, less than 8 fields, but faster otherwise.
 * Clone fails the escape analysis, potentially stopping other optimisations to be applied.
 
-![Multiplicity](/blog/images/CloneVCopy/multiplicity.jpg)
+[![Multiplicity](/blog/images/CloneVCopy/multiplicity.jpg)](http://www.imdb.com/title/tt0117108/)
 
 # Arrays
 
