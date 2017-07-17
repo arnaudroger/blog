@@ -134,8 +134,131 @@ java -jar target/benchmark.jar -bm avgt -tu ns -rf csv
 <img src="/blog/images/CloneVCopy/array-objects.png" alt="Object" /></p>
 
 <p>As we can see <code class="highlighter-rouge">clone</code> is grossly about 10% cheaper on small arrays compared to <code class="highlighter-rouge">Arrays.copyOf</code>, still it a good option especially for small arrays.
-It’s slightly surprising as both uses the same <a href="https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4581">copy mechanism</a>.
-I will try to update the section here but my guess is that the difference might be due to the allocation code.</p>
+It’s slightly surprising as both uses the same <a href="https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4581">copy mechanism</a>.</p>
+
+<p>Lets look at the asm generated</p>
+
+<h2 id="asm-clone">asm clone</h2>
+<p>for <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/bytearray_clone-asm.txt">testClone</a> there is some allocation code followed by the array copy <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/bytearray_clone-asm.txt#L41">Line 41</a> to <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/bytearray_clone-asm.txt#L47">Line 47</a>.</p>
+
+<pre><code class="language-asm">0x0000000116972e4c: mov 0x10(%rsi),%r9d  ;*getfield original
+                                         ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testClone@1 (line 68)
+0x0000000116972e50: mov 0xc(%r12,%r9,8),%r8d  ;*invokevirtual clone
+                                              ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testClone@4 (line 68)
+                                              ; implicit exception: dispatches to 0x0000000116972f0e
+0x0000000116972e55: lea (%r12,%r9,8),%rbp  ;*getfield original
+                                           ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testClone@1 (line 68)
+0x0000000116972e59: movslq %r8d,%rdx
+0x0000000116972e5c: add $0x17,%rdx
+0x0000000116972e60: and $0xfffffffffffffff8,%rdx
+0x0000000116972e64: cmp $0x100000,%r8d
+0x0000000116972e6b: ja L0001
+0x0000000116972e6d: mov 0x60(%r15),%rbx
+0x0000000116972e71: mov %rbx,%r10
+0x0000000116972e74: add %rdx,%r10
+0x0000000116972e77: cmp 0x70(%r15),%r10
+0x0000000116972e7b: jae L0001
+0x0000000116972e7d: mov %r10,0x60(%r15)
+0x0000000116972e81: prefetchnta 0xc0(%r10)
+0x0000000116972e89: movq $0x1,(%rbx)
+0x0000000116972e90: prefetchnta 0x100(%r10)
+0x0000000116972e98: movl $0xf80000f5,0x8(%rbx)  ;   {metadata({type array byte})}
+0x0000000116972e9f: mov %r8d,0xc(%rbx)
+0x0000000116972ea3: prefetchnta 0x140(%r10)
+0x0000000116972eab: prefetchnta 0x180(%r10)
+             L0000: lea 0x10(%r12,%r9,8),%rdi
+0x0000000116972eb8: mov %rbx,%rsi
+0x0000000116972ebb: add $0x10,%rsi
+0x0000000116972ebf: add $0xfffffffffffffff0,%rdx
+0x0000000116972ec3: shr $0x3,%rdx
+0x0000000116972ec7: movabs $0x1167e5780,%r10
+0x0000000116972ed1: callq *%r10  ;*invokevirtual clone
+                                 ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testClone@4 (line 68)
+0x0000000116972ed4: mov %rbx,%rax
+0x0000000116972ed7: add $0x20,%rsp
+0x0000000116972edb: pop %rbp
+0x0000000116972edc: test %eax,-0xdf73ee2(%rip)  # 0x00000001089ff000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x0000000116972ee2: retq
+</code></pre>
+<h2 id="asm-copy">asm copy</h2>
+<p>In the <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/bytearray_copy-asm.txt">testCopy</a> we can see some allocation code, but from <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/bytearray_copy-asm.txt#L47">Line 47</a> there is a lot more code to deal with the length of the copy.
+The actual copy is done on <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/bytearray_copy-asm.txt#L79">Line 79-80</a>.</p>
+
+<pre><code class="language-asm">0x000000010b1639cc: mov 0xc(%rsi),%r10d  ;*getfield size
+                                         ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testCopy@5 (line 62)
+0x000000010b1639d0: cmp $0x100000,%r10d
+0x000000010b1639d7: ja L0005
+0x000000010b1639dd: movslq %r10d,%r8  ;*newarray
+                                      ; - java.util.Arrays::copyOf@1 (line 3236)
+                                      ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testCopy@8 (line 62)
+             L0000: mov 0x10(%rsi),%r9d  ;*getfield original
+                                         ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testCopy@1 (line 62)
+0x000000010b1639e4: mov %r9d,0x10(%rsp)
+0x000000010b1639e9: add $0x17,%r8
+0x000000010b1639ed: mov %r8,%rdx
+0x000000010b1639f0: and $0xfffffffffffffff8,%rdx
+0x000000010b1639f4: cmp $0x100000,%r10d
+0x000000010b1639fb: ja L0004
+0x000000010b163a01: mov 0x60(%r15),%rbp
+0x000000010b163a05: mov %rbp,%r11
+0x000000010b163a08: add %rdx,%r11
+0x000000010b163a0b: cmp 0x70(%r15),%r11
+0x000000010b163a0f: jae L0004
+0x000000010b163a15: mov %r11,0x60(%r15)
+0x000000010b163a19: prefetchnta 0xc0(%r11)
+0x000000010b163a21: movq $0x1,0x0(%rbp)
+0x000000010b163a29: prefetchnta 0x100(%r11)
+0x000000010b163a31: movl $0xf80000f5,0x8(%rbp)  ;   {metadata({type array byte})}
+0x000000010b163a38: mov %r10d,0xc(%rbp)
+0x000000010b163a3c: prefetchnta 0x140(%r11)
+0x000000010b163a44: prefetchnta 0x180(%r11)  ;*newarray
+                                             ; - java.util.Arrays::copyOf@1 (line 3236)
+                                             ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testCopy@8 (line 62)
+             L0001: mov 0x10(%rsp),%r11d
+0x000000010b163a51: mov 0xc(%r12,%r11,8),%r11d  ;*arraylength
+                                                ; - java.util.Arrays::copyOf@9 (line 3237)
+                                                ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testCopy@8 (line 62)
+                                                ; implicit exception: dispatches to 0x000000010b163b77
+0x000000010b163a56: cmp %r10d,%r11d
+0x000000010b163a59: mov %r10d,%r9d
+0x000000010b163a5c: cmovl %r11d,%r9d  ;*invokestatic min
+                                      ; - java.util.Arrays::copyOf@11 (line 3238)
+                                      ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testCopy@8 (line 62)
+0x000000010b163a60: mov %rbp,%rbx
+0x000000010b163a63: add $0x10,%rbx
+0x000000010b163a67: shr $0x3,%r8  ;*invokestatic arraycopy
+                                  ; - java.util.Arrays::copyOf@14 (line 3237)
+                                  ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testCopy@8 (line 62)
+0x000000010b163a6b: mov 0x10(%rsp),%edi
+0x000000010b163a6f: lea (%r12,%rdi,8),%rsi  ;*getfield original
+                                            ; - com.github.arnaudroger.ArrayByteCopyVsCloneBenchmark::testCopy@1 (line 62)
+0x000000010b163a73: mov %r8,%rcx
+0x000000010b163a76: add $0xfffffffffffffffe,%rcx
+0x000000010b163a7a: cmp %r9d,%r11d
+0x000000010b163a7d: jb L0006
+0x000000010b163a83: cmp %r9d,%r10d
+0x000000010b163a86: jb L0006
+0x000000010b163a8c: test %r9d,%r9d
+0x000000010b163a8f: jle L0007
+0x000000010b163a95: lea 0x10(%r12,%rdi,8),%r11
+0x000000010b163a9a: cmp %r10d,%r9d
+0x000000010b163a9d: jl L0003
+0x000000010b163a9f: add $0xfffffffffffffff0,%rdx
+0x000000010b163aa3: shr $0x3,%rdx
+0x000000010b163aa7: mov %r11,%rdi
+0x000000010b163aaa: mov %rbx,%rsi
+0x000000010b163aad: movabs $0x10afd5780,%r10
+0x000000010b163ab7: callq *%r10
+             L0002: mov %rbp,%rax
+0x000000010b163abd: add $0x30,%rsp
+0x000000010b163ac1: pop %rbp
+0x000000010b163ac2: test %eax,-0x5b6aac8(%rip)  # 0x00000001055f9000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x000000010b163ac8: retq
+</code></pre>
+
+<p><code class="highlighter-rouge">clone</code> will copy to the exact same length, but <code class="highlighter-rouge">Arrays.copyOf</code> allows us to copy an array to a different array length which complicates the different case to handle and increase the cost especially for small arrays.</p>
 
 <h1 id="objects">Objects</h1>
 
@@ -318,7 +441,7 @@ In the following benchmark, we create a copy and return only one field from the 
 
 <p>Let’s have a closer look at the asm to see under the hood.</p>
 
-<h2 id="asm-clone">asm clone</h2>
+<h2 id="asm-clone-1">asm clone</h2>
 
 <p>In the <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-clone-asm.txt">asm</a> for <code class="highlighter-rouge">testClone</code> is similar to the one for <code class="highlighter-rouge">Object4CopyVsCloneBenchmark.testClone</code>. 
 On <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-clone-asm.txt#L26">Line 26</a> it allocates 144 bytes - 90 in hexadecimal -, that’s 12 bytes for header + 32 * 4 = 128 bytes for the fields and 4 bytes lost for alignment.</p>
@@ -361,7 +484,7 @@ On <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevsco
 0x000000010ceebf0e: retq
 </code></pre>
 
-<h2 id="asm-copy">asm copy</h2>
+<h2 id="asm-copy-1">asm copy</h2>
 
 <p>In the copy <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-copy-asm.txt">one</a>, it does not even copy the object but just returns the f29 field from the original object.
 Because the copy did not escape, and the copy creation did not have any side effects, it is safe to totally remove the creation of the new object.</p>
