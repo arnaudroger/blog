@@ -73,6 +73,8 @@ The lower the better.
 ![Object](/blog/images/CloneVCopy/array-objects.png)
 
 As we can see `clone` is grossly about 10% cheaper on small arrays compared to `Arrays.copyOf`, still it a good option especially for small arrays.
+It's slightly surprising as both uses the same [copy mechanism](https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4581).
+I will try to update the section here but my guess is that the difference might be due to the allocation code. 
 
 # Objects
 

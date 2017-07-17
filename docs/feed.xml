@@ -5,8 +5,8 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 17 Jul 2017 06:59:57 +0100</pubDate>
-    <lastBuildDate>Mon, 17 Jul 2017 06:59:57 +0100</lastBuildDate>
+    <pubDate>Mon, 17 Jul 2017 10:48:46 +0100</pubDate>
+    <lastBuildDate>Mon, 17 Jul 2017 10:48:46 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
     
     
@@ -85,7 +85,9 @@ java -jar target/benchmark.jar -bm avgt -tu ns -rf csv
 &lt;img src=&quot;/blog/images/CloneVCopy/array-longs.png&quot; alt=&quot;Long&quot; /&gt;
 &lt;img src=&quot;/blog/images/CloneVCopy/array-objects.png&quot; alt=&quot;Object&quot; /&gt;&lt;/p&gt;
 
-&lt;p&gt;As we can see &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; is grossly about 10% cheaper on small arrays compared to &lt;code class=&quot;highlighter-rouge&quot;&gt;Arrays.copyOf&lt;/code&gt;, still it a good option especially for small arrays.&lt;/p&gt;
+&lt;p&gt;As we can see &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; is grossly about 10% cheaper on small arrays compared to &lt;code class=&quot;highlighter-rouge&quot;&gt;Arrays.copyOf&lt;/code&gt;, still it a good option especially for small arrays.
+It’s slightly surprising as both uses the same &lt;a href=&quot;https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4581&quot;&gt;copy mechanism&lt;/a&gt;.
+I will try to update the section here but my guess is that the difference might be due to the allocation code.&lt;/p&gt;
 
 &lt;h1 id=&quot;objects&quot;&gt;Objects&lt;/h1&gt;
 

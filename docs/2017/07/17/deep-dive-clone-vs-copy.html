@@ -133,7 +133,9 @@ java -jar target/benchmark.jar -bm avgt -tu ns -rf csv
 <img src="/blog/images/CloneVCopy/array-longs.png" alt="Long" />
 <img src="/blog/images/CloneVCopy/array-objects.png" alt="Object" /></p>
 
-<p>As we can see <code class="highlighter-rouge">clone</code> is grossly about 10% cheaper on small arrays compared to <code class="highlighter-rouge">Arrays.copyOf</code>, still it a good option especially for small arrays.</p>
+<p>As we can see <code class="highlighter-rouge">clone</code> is grossly about 10% cheaper on small arrays compared to <code class="highlighter-rouge">Arrays.copyOf</code>, still it a good option especially for small arrays.
+It’s slightly surprising as both uses the same <a href="https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4581">copy mechanism</a>.
+I will try to update the section here but my guess is that the difference might be due to the allocation code.</p>
 
 <h1 id="objects">Objects</h1>
 
