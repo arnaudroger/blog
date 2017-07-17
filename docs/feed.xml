@@ -5,9 +5,344 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 16 Jun 2017 07:29:37 +0100</pubDate>
-    <lastBuildDate>Fri, 16 Jun 2017 07:29:37 +0100</lastBuildDate>
+    <pubDate>Mon, 17 Jul 2017 06:52:12 +0100</pubDate>
+    <lastBuildDate>Mon, 17 Jul 2017 06:52:12 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
+    
+    
+      <item>
+        <title>Deep dive into the clone vs copy question</title>
+        <description>&lt;p&gt;I came across &lt;a href=&quot;https://programmingmitra.blogspot.in/&quot;&gt;Naresh Joshi&lt;/a&gt; about &lt;a href=&quot;https://dzone.com/articles/java-cloning-copy-constructor-vs-cloning&quot;&gt;Copy vs Cloning&lt;/a&gt; and was wondering about the performance aspects.&lt;/p&gt;
+
+&lt;p&gt;Cloning is known to have issues with &lt;a href=&quot;https://en.wikipedia.org/wiki/Clone_%28Java_method%29#clone.28.29_and_final_fields&quot;&gt;final fields&lt;/a&gt;.
+Also, the fact that the &lt;a href=&quot;http://www.artima.com/intv/bloch13.html&quot;&gt;Cloneable&lt;/a&gt; interface does not expose the &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; method, you need to know the concrete type of the class to call &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;you can’t write the following code&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Cloneable&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// does not work&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;If the &lt;code class=&quot;highlighter-rouge&quot;&gt;Cloneable&lt;/code&gt; interface is broken, the clone mechanism might have some advantages. 
+By doing memory copy it can be more efficient than field by field copy.
+It is highlighted by Josh Bloch, the author of Effective Java &lt;a href=&quot;http://www.artima.com/intv/bloch13.html&quot;&gt;quoting&lt;/a&gt; Doug Lea:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Doug Lea goes even further. He told me that he doesn’t use clone anymore except to copy arrays. You should use clone to copy arrays, because that’s generally the fastest way to do it. But Doug’s types simply don’t implement Cloneable anymore. He’s given up on it. And I think that’s not unreasonable.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;But that was in 2002, is it still the case? Since Java 6 we have &lt;code class=&quot;highlighter-rouge&quot;&gt;Arrays.copyOf&lt;/code&gt; how does that compare? What about performance on Object copy?&lt;/p&gt;
+
+&lt;p&gt;There is only one way to find out, Let’s benchmark.&lt;/p&gt;
+
+&lt;h1 id=&quot;tldr&quot;&gt;TL;DR&lt;/h1&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Clone is faster for array copy, noticeably on small arrays.&lt;/li&gt;
+  &lt;li&gt;Clone is slower for small objects, less than 8 fields, but faster otherwise.&lt;/li&gt;
+  &lt;li&gt;Clone fails the escape analysis, potentially stopping other optimisations to be applied.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/images/CloneVCopy/multiplicity.jpg&quot; alt=&quot;Multiplicity&quot; /&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;arrays&quot;&gt;Arrays&lt;/h1&gt;
+
+&lt;p&gt;Let’s take a first look at &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; vs &lt;code class=&quot;highlighter-rouge&quot;&gt;Arrays.copyOf&lt;/code&gt; of arrays.&lt;/p&gt;
+
+&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;int array&lt;/code&gt; &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/ArrayIntCopyVsCloneBenchmark.java&quot;&gt;benchmark&lt;/a&gt; looks as follows :&lt;/p&gt;
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testCopy&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;copyOf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;original&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testClone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;original&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;p&gt;We create an &lt;code class=&quot;highlighter-rouge&quot;&gt;array&lt;/code&gt; of &lt;code class=&quot;highlighter-rouge&quot;&gt;int&lt;/code&gt; with random values and do a &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; or &lt;code class=&quot;highlighter-rouge&quot;&gt;Arrays.copyOf&lt;/code&gt;. 
+Note that we return the result of the copy to guarantee that the code will get executed, we will see in the escape analysis part that not returning the array can dramatically impact the benchmark.&lt;/p&gt;
+
+&lt;p&gt;On top of &lt;code class=&quot;highlighter-rouge&quot;&gt;int  array&lt;/code&gt;, there is a version for &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/ArrayByteCopyVsCloneBenchmark.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;byte array&lt;/code&gt;&lt;/a&gt;, &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/ArrayLongCopyVsCloneBenchmark.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;long array&lt;/code&gt;&lt;/a&gt; and &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/ArrayObjectCopyVsCloneBenchmark.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Object array&lt;/code&gt;&lt;/a&gt;. 
+I use the DONT_INLINE flag to make it easier to analyse the asm generated if needed.&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;mvn clean install
+java -jar target/benchmark.jar -bm avgt -tu ns -rf csv
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;This gives the following &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/jmh-result.csv&quot;&gt;numbers&lt;/a&gt; for the average time in ns.&lt;/p&gt;
+
+&lt;p&gt;In the following charts, I used the &lt;code class=&quot;highlighter-rouge&quot;&gt;total time/array size&lt;/code&gt; to allow them to be displayed in the same chart.&lt;/p&gt;
+
+&lt;p&gt;The lower the better.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/images/CloneVCopy/array-bytes.png&quot; alt=&quot;Byte&quot; /&gt;
+&lt;img src=&quot;/blog/images/CloneVCopy/array-ints.png&quot; alt=&quot;Int&quot; /&gt;
+&lt;img src=&quot;/blog/images/CloneVCopy/array-longs.png&quot; alt=&quot;Long&quot; /&gt;
+&lt;img src=&quot;/blog/images/CloneVCopy/array-objects.png&quot; alt=&quot;Object&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;As we can see &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; is grossly about 10% cheaper on small arrays compared to &lt;code class=&quot;highlighter-rouge&quot;&gt;Arrays.copyOf&lt;/code&gt;, still it a good option especially for small arrays.&lt;/p&gt;
+
+&lt;h1 id=&quot;objects&quot;&gt;Objects&lt;/h1&gt;
+
+&lt;p&gt;Now we will look at cloning object with 4, 8, 16 and 32 fields. 
+The benchmarks looks &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/Object4CopyVsCloneBenchmark.java&quot;&gt;for 4 fields object&lt;/a&gt; is as follows:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Object4&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testCopy4&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Object4&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;original&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Object4&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testClone4&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;original&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;with &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/Object8CopyVsCloneBenchmark.java&quot;&gt;8 fields&lt;/a&gt;, &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/Object16CopyVsCloneBenchmark.java&quot;&gt;16 fields&lt;/a&gt; and &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/Object32CopyVsCloneBenchmark.java&quot;&gt;32 fields&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The normalised &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/jmh-result.csv&quot;&gt;numbers&lt;/a&gt; are as follows:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/images/CloneVCopy/object.png&quot; alt=&quot;Object4-32&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We can see that for small/medium objects - less that 8 fields - &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; is not as efficient as copying, but it does start to pay off for bigger objects.&lt;/p&gt;
+
+&lt;p&gt;This is not too surprising and from that &lt;a href=&quot;https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4497&quot;&gt;the jvm code&lt;/a&gt; comment:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;// TODO: generate fields copies for small objects instead.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Somebody was meant to address that at a later time but never did.&lt;/p&gt;
+
+&lt;p&gt;Let’s have a deeper look at the asm for the clone and copy on the 4 fields object.&lt;/p&gt;
+
+&lt;h2 id=&quot;asm-4-fields&quot;&gt;Asm 4 fields&lt;/h2&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;java -jar target/benchmarks.jar -jvmArgs &lt;span class=&quot;s2&quot;&gt;&quot;-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:+PrintAssembly &quot;&lt;/span&gt;  -f 1 &lt;span class=&quot;s2&quot;&gt;&quot;Object4&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;copy-asm&quot;&gt;copy asm&lt;/h3&gt;
+&lt;p&gt;In the &lt;code class=&quot;highlighter-rouge&quot;&gt;testCopy&lt;/code&gt; &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt&quot;&gt;asm&lt;/a&gt;, from &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L17&quot;&gt;Line 17&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L32&quot;&gt;Line 32&lt;/a&gt; we can see the allocation code.&lt;/p&gt;
+
+&lt;p&gt;I added some annotations in the asm starting with &lt;code class=&quot;highlighter-rouge&quot;&gt;**&lt;/code&gt;.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;0x000000010593d28f: mov 0x60(%r15),%rax
+0x000000010593d293: mov %rax,%r10
+0x000000010593d296: add $0x20,%r10         ;** allocation size
+0x000000010593d29a: cmp 0x70(%r15),%r10
+0x000000010593d29e: jae L0001
+0x000000010593d2a0: mov %r10,0x60(%r15)
+0x000000010593d2a4: prefetchnta 0xc0(%r10)
+0x000000010593d2ac: mov $0xf8015eab,%r11d  ;   {metadata('com/github/arnaudroger/beans/Object4')}
+0x000000010593d2b2: movabs $0x0,%r10
+0x000000010593d2bc: lea (%r10,%r11,8),%r10
+0x000000010593d2c0: mov 0xa8(%r10),%r10
+0x000000010593d2c7: mov %r10,(%rax)
+0x000000010593d2ca: movl $0xf8015eab,0x8(%rax)  ;   {metadata('com/github/arnaudroger/beans/Object4')}
+0x000000010593d2d1: mov %r12d,0xc(%rax)
+0x000000010593d2d5: mov %r12,0x10(%rax)
+0x000000010593d2d9: mov %r12,0x18(%rax)  ;*new  ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@0 (line 60)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L19&quot;&gt;Line 19&lt;/a&gt; is the allocation size, 32 bytes, 16 bytes for properties + 12 bytes for headers + 4 bytes for alignment.
+You can check that using &lt;a href=&quot;http://openjdk.java.net/projects/code-tools/jol/&quot;&gt;jol&lt;/a&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;com.github.arnaudroger.beans.Object4 object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0    12        (object header)                           N/A
+     12     4    int Object4.f1                                N/A
+     16     4    int Object4.f2                                N/A
+     20     4    int Object4.f3                                N/A
+     24     4    int Object4.f4                                N/A
+     28     4        (loss due to the next object alignment)
+Instance size: 32 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;From &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L33&quot;&gt;Line 33&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L48&quot;&gt;Line 48&lt;/a&gt; the field by field copy.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;             L0000: mov 0xc(%rbp),%r11d  ;*getfield original4
+                                         ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@5 (line 60)
+0x000000010593d2e1: mov 0xc(%r12,%r11,8),%r10d  ; implicit exception: dispatches to 0x000000010593d322
+0x000000010593d2e6: mov %r10d,0xc(%rax)  ;*putfield f1
+                                         ; - com.github.arnaudroger.beans.Object4::&amp;lt;init&amp;gt;@9 (line 12)
+                                         ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@8 (line 60)
+0x000000010593d2ea: mov 0x10(%r12,%r11,8),%r8d
+0x000000010593d2ef: mov %r8d,0x10(%rax)  ;*putfield f2
+                                         ; - com.github.arnaudroger.beans.Object4::&amp;lt;init&amp;gt;@17 (line 13)
+                                         ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@8 (line 60)
+0x000000010593d2f3: mov 0x14(%r12,%r11,8),%r10d
+0x000000010593d2f8: mov %r10d,0x14(%rax)  ;*putfield f3
+                                          ; - com.github.arnaudroger.beans.Object4::&amp;lt;init&amp;gt;@25 (line 14)
+                                          ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@8 (line 60)
+0x000000010593d2fc: mov 0x18(%r12,%r11,8),%r11d
+0x000000010593d301: mov %r11d,0x18(%rax)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&quot;clone-asm&quot;&gt;clone asm&lt;/h3&gt;
+
+&lt;p&gt;for the &lt;code class=&quot;highlighter-rouge&quot;&gt;testClone&lt;/code&gt; &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-clone-asm.txt&quot;&gt;asm&lt;/a&gt; we can also see from &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-clone-asm.txt#L24&quot;&gt;Line 24&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-clone-asm.txt#L37&quot;&gt;Line 37&lt;/a&gt; the allocation code.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;0x000000010b17da9d: mov 0x60(%r15),%rbx
+0x000000010b17daa1: mov %rbx,%r10
+0x000000010b17daa4: add $0x20,%r10         ;** allocation size
+0x000000010b17daa8: cmp 0x70(%r15),%r10
+0x000000010b17daac: jae L0001
+0x000000010b17daae: mov %r10,0x60(%r15)
+0x000000010b17dab2: prefetchnta 0xc0(%r10)
+0x000000010b17daba: mov $0xf8015eab,%r11d  ;   {metadata('com/github/arnaudroger/beans/Object4')}
+0x000000010b17dac0: movabs $0x0,%r10
+0x000000010b17daca: lea (%r10,%r11,8),%r10
+0x000000010b17dace: mov 0xa8(%r10),%r10
+0x000000010b17dad5: mov %r10,(%rbx)
+0x000000010b17dad8: movl $0xf8015eab,0x8(%rbx)  ;   {metadata('com/github/arnaudroger/beans/Object4')}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Which is slightly surprising because in the compilation log&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/images/CloneVCopy/testClone-Chain.png&quot; alt=&quot;JIT watch chain view&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;        &lt;span class=&quot;nt&quot;&gt;&amp;lt;klass&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;java/lang/Object&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;flags=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;1&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;id=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;729&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;method&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;compile_kind=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;c2n&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;level=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;0&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;bytes=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;0&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;clone&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;flags=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;260&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;holder=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;729&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;id=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;838&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;compile_id=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;167&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;iicount=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;512&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;return=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;729&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;call&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;method=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;838&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;inline=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;1&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;count=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;16881&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;prof_factor=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;1&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;inline_fail&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;reason=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;native method&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;ctxk=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;833&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;type=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;leaf_type&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;uncommon_trap&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;reason=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;unhandled&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;bci=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;1&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;action=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;none&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;intrinsic&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;nodes=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;69&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;id=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;_clone&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Object.clone&lt;/code&gt; is marked has having failed to inline because it is a “native method”.&lt;/p&gt;
+
+&lt;p&gt;clone is an intrinsic and is inlined by &lt;a href=&quot;https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4569&quot;&gt;inline_native_clone&lt;/a&gt; and &lt;a href=&quot;https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4478&quot;&gt;copy_to_clone&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;copy_to_clone&lt;/code&gt; generate the &lt;a href=&quot;https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4480&quot;&gt;allocation&lt;/a&gt; and then a &lt;a href=&quot;https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4531&quot;&gt;long array copy&lt;/a&gt; as followed.
+ The long array copy is doable because objects are 8 bytes aligned in memory.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;             L0000: lea 0x8(%r12,%r8,8),%rdi ;** src 
+0x000000010b17dae4: mov %rbx,%rsi ;** dst
+0x000000010b17dae7: add $0x8,%rsi ;** add offset
+0x000000010b17daeb: mov $0x3,%edx ;** length
+0x000000010b17daf0: movabs $0x10aff4780,%r10
+0x000000010b17dafa: callq *%r10  ;*invokespecial clone
+                                 ; - com.github.arnaudroger.beans.Object4::clone@1 (line 28)
+                                 ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testClone4@4 (line 66)
+                                 
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;So despite being marked as inline failed, it is fully inlined.
+It copies from offset 8 bytes and copies 3 long or 24 bytes, the includes 4 bytes for the class metadata, 16 bytes for the 4 ints, and  the rest is for alignment.&lt;/p&gt;
+
+&lt;h1 id=&quot;impact-of-escape-analysis&quot;&gt;Impact of Escape Analysis&lt;/h1&gt;
+
+&lt;p&gt;But because cloning uses memory copy, the instance will fail the escape analysis, which will disable some optimisations.
+In the following benchmark, we create a copy and return only one field from the new &lt;code class=&quot;highlighter-rouge&quot;&gt;Object32&lt;/code&gt; created.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;     &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+     &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+     &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testCopy&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+         &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Object32&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;original&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;f29&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+     &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+ 
+     &lt;span class=&quot;nd&quot;&gt;@Benchmark&lt;/span&gt;
+     &lt;span class=&quot;nd&quot;&gt;@CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CompilerControl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;Mode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DONT_INLINE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+     &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testClone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+         &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;original&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;f29&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+     &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And the results are that even though &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; is more efficient for a 32 fields object&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/images/CloneVCopy/object-ea.png&quot; alt=&quot;Object-EA&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;the clone benchmark is more than 4 times slower! What happened?&lt;/p&gt;
+
+&lt;p&gt;Let’s have a closer look at the asm to see under the hood.&lt;/p&gt;
+
+&lt;h2 id=&quot;asm-clone&quot;&gt;asm clone&lt;/h2&gt;
+
+&lt;p&gt;In the &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-clone-asm.txt&quot;&gt;asm&lt;/a&gt; for &lt;code class=&quot;highlighter-rouge&quot;&gt;testClone&lt;/code&gt; is similar to the one for &lt;code class=&quot;highlighter-rouge&quot;&gt;Object4CopyVsCloneBenchmark.testClone&lt;/code&gt;. 
+On &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-clone-asm.txt#L26&quot;&gt;Line 26&lt;/a&gt; it allocates 144 bytes - 90 in hexadecimal -, that’s 12 bytes for header + 32 * 4 = 128 bytes for the fields and 4 bytes lost for alignment.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;0x000000010ceebe8c: mov 0xc(%rsi),%r9d  ;*getfield original
+                                        ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@1 (line 69)
+0x000000010ceebe90: test %r9d,%r9d
+0x000000010ceebe93: je L0002  ;*invokespecial clone
+                              ; - com.github.arnaudroger.beans.Object32::clone@1 (line 111)
+                              ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@4 (line 69)
+0x000000010ceebe99: lea (%r12,%r9,8),%rbp  ;*getfield original
+                                           ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@1 (line 69)
+0x000000010ceebe9d: mov 0x60(%r15),%rbx
+0x000000010ceebea1: mov %rbx,%r10
+0x000000010ceebea4: add $0x90,%r10 ;** object length
+0x000000010ceebeab: cmp 0x70(%r15),%r10
+0x000000010ceebeaf: jae L0001
+0x000000010ceebeb1: mov %r10,0x60(%r15)
+0x000000010ceebeb5: prefetchnta 0xc0(%r10)
+0x000000010ceebebd: mov $0xf8015eab,%r11d  ;   {metadata('com/github/arnaudroger/beans/Object32')}
+0x000000010ceebec3: movabs $0x0,%r10
+0x000000010ceebecd: lea (%r10,%r11,8),%r10
+0x000000010ceebed1: mov 0xa8(%r10),%r10
+0x000000010ceebed8: mov %r10,(%rbx)
+0x000000010ceebedb: movl $0xf8015eab,0x8(%rbx)  ;   {metadata('com/github/arnaudroger/beans/Object32')}
+             L0000: lea 0x8(%r12,%r9,8),%rdi ;** src
+0x000000010ceebee7: mov %rbx,%rsi ;** dest
+0x000000010ceebeea: add $0x8,%rsi ;** add offset of 8
+0x000000010ceebeee: mov $0x11,%edx ;** length to copy 0x11 * 8 = 136 bytes 
+0x000000010ceebef3: movabs $0x10cd5d780,%r10
+0x000000010ceebefd: callq *%r10  ;*invokespecial clone
+                                 ; - com.github.arnaudroger.beans.Object32::clone@1 (line 111)
+                                 ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@4 (line 69)
+0x000000010ceebf00: mov 0x7c(%rbx),%eax  ;*getfield f29 ** 7c is 124 bytes, minus the headers 112 that offset 28 ints 
+                                         ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@7 (line 69)
+0x000000010ceebf03: add $0x20,%rsp
+0x000000010ceebf07: pop %rbp
+0x000000010ceebf08: test %eax,-0xb154f0e(%rip)  # 0x0000000101d97000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x000000010ceebf0e: retq
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;asm-copy&quot;&gt;asm copy&lt;/h2&gt;
+
+&lt;p&gt;In the copy &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-copy-asm.txt&quot;&gt;one&lt;/a&gt;, it does not even copy the object but just returns the f29 field from the original object.
+Because the copy did not escape, and the copy creation did not have any side effects, it is safe to totally remove the creation of the new object.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-copy-asm.txt#L16&quot;&gt;Line 16&lt;/a&gt; to &lt;a href=&quot;https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-copy-asm.txt#L26&quot;&gt;Line 26&lt;/a&gt;.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;0x0000000109c7b1cc: mov 0xc(%rsi),%r11d  ;*getfield original
+                                         ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testCopy@5 (line 63)
+0x0000000109c7b1d0: mov 0x7c(%r12,%r11,8),%eax  ;*getfield f29 ** 7c is 124 bytes, minus the headers 112 that offset 28 ints
+                                                ; - com.github.arnaudroger.beans.Object32::&amp;lt;init&amp;gt;@230 (line 67)
+                                                ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testCopy@8 (line 63)
+                                                ; implicit exception: dispatches to 0x0000000109c7b1e1
+0x0000000109c7b1d5: add $0x10,%rsp
+0x0000000109c7b1d9: pop %rbp
+0x0000000109c7b1da: test %eax,-0x47b81e0(%rip)  # 0x00000001054c3000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x0000000109c7b1e0: retq
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h1 id=&quot;summary&quot;&gt;Summary&lt;/h1&gt;
+
+&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;clone&lt;/code&gt; method will perform better on &lt;code class=&quot;highlighter-rouge&quot;&gt;array&lt;/code&gt; copy and on big objects but be sure that your code will not benefit from escape analysis.
+In any case, it might not make a big difference to your overall code, so Doug Lea’s advice is still valid, avoid unless for array copy.&lt;/p&gt;
+
+</description>
+        <pubDate>Mon, 17 Jul 2017 00:00:00 +0100</pubDate>
+        <link>http://arnaudroger.github.io/blog/2017/07/17/deep-dive-clone-vs-copy.html</link>
+        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2017/07/17/deep-dive-clone-vs-copy.html</guid>
+        
+        
+      </item>
+    
     
     
       <item>
@@ -1841,201 +2176,6 @@ java -jar target/benchmarks.jar Csv2Ben -f 1 -jvmArgs &lt;span class=&quot;s2&qu
       </item>
     
     
-    
-    
-    
-      <item>
-        <title>Consumer In Place Of Returning List</title>
-        <description>&lt;h1 id=&quot;why-you-should-replace-your-return-list-with-a-consumer-parameter&quot;&gt;Why you should replace your return List&lt;T&gt; with a Consumer&lt;T&gt; parameter&lt;/T&gt;&lt;/T&gt;&lt;/h1&gt;
-
-&lt;p&gt;It is common practice to have your Service layer, Dao layer etc… 
-return a List&lt;T&gt; or Collection&lt;T&gt; as a result of the call.&lt;/T&gt;&lt;/T&gt;&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt; &lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getAllMyTs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;but with the introduction of lambdas in java 8, the use of callback has become far cheaper
-and user a Consumer&lt;T&gt; as a parameter&lt;/T&gt;&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt; &lt;span class=&quot;n&quot;&gt;produceAllMyTs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;could make your code less couple, easier to maintain and more scalable.&lt;/p&gt;
-
-&lt;h2 id=&quot;a-tale-of-2-services&quot;&gt;A tale of 2 services&lt;/h2&gt;
-
-&lt;p&gt;In our Classic Service&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;SClassicService&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-
-    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getStrings&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;c1&quot;&gt;// ...&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;we return a List&lt;String&gt; that we get from our DAO. We make it the
-responsibility of the service to choose an appropriate data structure to store the result, 
-ArrayList or LinkedList?, ImmutableList?&lt;/String&gt;&lt;/p&gt;
-
-&lt;p&gt;In our Producer Service&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;SProducerService&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-
-    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;produceStrings&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;super&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;c1&quot;&gt;// ...&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;we use the Consumer interface as a way to communicate each element. 
-It’s the responsibility of the caller to decide what to do with it. 
-If we don’t need to have a List we won’t need to create one - when do we need it? some framework push you towards that but there is always a way to do without -.&lt;/p&gt;
-
-&lt;p&gt;For small amount of data it may not matter, but if you fetching a few 100 000s and don’t need to 
-store them in a list it can make a big difference.&lt;/p&gt;
-
-&lt;p&gt;Let’s imagine a simple class that uses the service and output it to the console.&lt;/p&gt;
-
-&lt;p&gt;in Classic world&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;service&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getStrings&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;forEach&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;in the Producer&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;service&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;produceStrings&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;In the classic world we won’t start printing the data until 
-they have all been put in the list.&lt;/p&gt;
-
-&lt;p&gt;So if we have use &lt;a href=&quot;https://github.com/arnaudroger/blog/tree/master/src/main/java/io/github/arnaudroger/consumer/service/DSlowDAO.java&quot;&gt;DSlowDAO&lt;/a&gt; nothing happens for a while and then all of a sudden we display all
-the data.&lt;/p&gt;
-
-&lt;p&gt;If the Consumer was slow, we would fetch all the data and keep them all in memory until the last is consumed.&lt;/p&gt;
-
-&lt;p&gt;In the producer world only the one currently being processed is alive. If the producer is slow 
-we will output the value as soon as they arrive. If the consumer is slow we will not
-produce the next value until the consumer is ready to consume it.
-Those are great properties to have in your system.&lt;/p&gt;
-
-&lt;h2 id=&quot;a-tale-of-2-functional-interfaces&quot;&gt;A tale of 2 functional interfaces&lt;/h2&gt;
-
-&lt;p&gt;The Consumer approach is also easier to compose.&lt;/p&gt;
-
-&lt;p&gt;When you use a Supplier&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;nd&quot;&gt;@FunctionalInterface&lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;interface&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ListSupplier&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;default&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ListSupplier&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;compose&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ListSupplier&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;composeWith&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;composedList&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;composedList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;addAll&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;composeWith&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;composedList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;};&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;you will need to create 3 Lists.&lt;/p&gt;
-
-&lt;p&gt;But using a producer&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;nd&quot;&gt;@FunctionalInterface&lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;interface&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Producer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;produce&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;super&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;default&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Producer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;compose&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Producer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;composeWith&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;produce&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;composeWith&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;produce&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;};&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;you just need to call on the first producer then the second.
-no more garbage created because it is not the responsibility of the producer
-to create the data structure to store the objects.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-if-the-consumer-needs-a-list&quot;&gt;What if the consumer needs a list?&lt;/h2&gt;
-
-&lt;p&gt;You can just use the List as a consumer&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;list&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;service&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;produceStrings&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;list:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;you could also make the producer return the consumer with the actual type using the following generic signature&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;C&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;produceString&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;C&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;then create generic ToListConsumer&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ToListConsumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;implements&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ToListConsumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;toList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ToListConsumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;();&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;list&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;();&lt;/span&gt;
-    
-    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;accept&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-    
-    &lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;you can now chain the consumer call with the list fetching.&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;list&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;service&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;produceStrings&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ToListConsumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;toList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;h2 id=&quot;my-dao-layer-return-a-list&quot;&gt;My DAO layer return a List?&lt;/h2&gt;
-
-&lt;p&gt;There is still some benefits if you can’t remove the List creation. The consumer is called 
-inside the transaction, no need for the dreadful open session in view filter.&lt;/p&gt;
-
-&lt;p&gt;Unfortunately JPA does not seem to support ScrollablResults but Hibernate does so if you use
-that implementation you can change your code to fetch only a few items at a time.&lt;/p&gt;
-
-&lt;p&gt;If you use spring jdbc then just use the RowCallBackHandler, map the object and callback the consumer.&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;template&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;query&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sql&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rowMapper&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;map&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)));&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;jOOQ and SimpleFlatMapper already support a consumer callback.&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;c1&quot;&gt;// jooq&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;jooqQuery&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;fetchInto&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;jooqQuery&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;fetchStream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;forEach&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;// sfm&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;mapper&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;forEach&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;resultSet&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;mapper&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;stream&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;resultSet&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;forEach&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;h2 id=&quot;using-that-pattern-even-when-it-return-a-single-entry&quot;&gt;Using that pattern even when it return a single Entry?&lt;/h2&gt;
-
-&lt;p&gt;The consumer can be use with 0 to n number of elements.
-It’s a good alternative to returning Optional&lt;T&gt;.&lt;/T&gt;&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;service&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getOptionalValue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;ifPresent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;becomes&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;n&quot;&gt;service&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;produceOptionalValue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;consumer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Using a consumer allow you to build more flexible and more reactive interface without changing your design too much. 
-It’s very straightforward and can help reduce the coupling of your application. There is nothing new there but
-java8 with the addition of Lambdas made it a lot cheaper on the dev side. It’s time to get back to message passing.&lt;/p&gt;
-
-</description>
-        <pubDate>Mon, 19 Sep 2016 00:00:00 +0100</pubDate>
-        <link>http://arnaudroger.github.io/blog/2016/09/19/consumer-in-place-of-returning-list.html</link>
-        <guid isPermaLink="true">http://arnaudroger.github.io/blog/2016/09/19/consumer-in-place-of-returning-list.html</guid>
-        
-        
-      </item>
     
     
   </channel>

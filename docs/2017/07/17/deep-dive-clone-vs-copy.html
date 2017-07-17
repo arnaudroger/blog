@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Deep dive into the clone vs copy question</title>
+  <meta name="description" content="I came across Naresh Joshi about Copy vs Cloning and was wondering about the performance aspects.">
+
+  <link rel="stylesheet" href="/blog/assets/main.css">
+  <link rel="canonical" href="http://arnaudroger.github.io/blog/2017/07/17/deep-dive-clone-vs-copy.html">
+  <link rel="alternate" type="application/rss+xml" title="Eat Sleep Code Repeat." href="/blog/feed.xml">
+  
+  
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/blog/">Eat Sleep Code Repeat.</a>
+
+    <nav class="site-nav">
+      <span class="menu-icon">
+        <svg viewBox="0 0 18 15" width="18px" height="15px">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </span>
+
+      <div class="trigger">
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+    <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">Deep dive into the clone vs copy question</h1>
+        <p class="post-meta"><time datetime="2017-07-17T00:00:00+01:00" itemprop="datePublished">Jul 17, 2017</time></p>
+    </header>
+
+    <div class="post-content" itemprop="articleBody">
+        <p>I came across <a href="https://programmingmitra.blogspot.in/">Naresh Joshi</a> about <a href="https://dzone.com/articles/java-cloning-copy-constructor-vs-cloning">Copy vs Cloning</a> and was wondering about the performance aspects.</p>
+
+<p>Cloning is known to have issues with <a href="https://en.wikipedia.org/wiki/Clone_%28Java_method%29#clone.28.29_and_final_fields">final fields</a>.
+Also, the fact that the <a href="http://www.artima.com/intv/bloch13.html">Cloneable</a> interface does not expose the <code class="highlighter-rouge">clone</code> method, you need to know the concrete type of the class to call <code class="highlighter-rouge">clone</code>.</p>
+
+<p>you can’t write the following code</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="o">((</span><span class="n">Cloneable</span><span class="o">)</span><span class="n">o</span><span class="o">).</span><span class="na">clone</span><span class="o">();</span> <span class="c1">// does not work</span>
+</code></pre>
+</div>
+
+<p>If the <code class="highlighter-rouge">Cloneable</code> interface is broken, the clone mechanism might have some advantages. 
+By doing memory copy it can be more efficient than field by field copy.
+It is highlighted by Josh Bloch, the author of Effective Java <a href="http://www.artima.com/intv/bloch13.html">quoting</a> Doug Lea:</p>
+
+<blockquote>
+  <p>Doug Lea goes even further. He told me that he doesn’t use clone anymore except to copy arrays. You should use clone to copy arrays, because that’s generally the fastest way to do it. But Doug’s types simply don’t implement Cloneable anymore. He’s given up on it. And I think that’s not unreasonable.</p>
+</blockquote>
+
+<p>But that was in 2002, is it still the case? Since Java 6 we have <code class="highlighter-rouge">Arrays.copyOf</code> how does that compare? What about performance on Object copy?</p>
+
+<p>There is only one way to find out, Let’s benchmark.</p>
+
+<h1 id="tldr">TL;DR</h1>
+
+<ul>
+  <li>Clone is faster for array copy, noticeably on small arrays.</li>
+  <li>Clone is slower for small objects, less than 8 fields, but faster otherwise.</li>
+  <li>Clone fails the escape analysis, potentially stopping other optimisations to be applied.</li>
+</ul>
+
+<p><img src="/blog/images/CloneVCopy/multiplicity.jpg" alt="Multiplicity" /></p>
+
+<h1 id="arrays">Arrays</h1>
+
+<p>Let’s take a first look at <code class="highlighter-rouge">clone</code> vs <code class="highlighter-rouge">Arrays.copyOf</code> of arrays.</p>
+
+<p>The <code class="highlighter-rouge">int array</code> <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/ArrayIntCopyVsCloneBenchmark.java">benchmark</a> looks as follows :</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="nd">@Benchmark</span>
+    <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">int</span><span class="o">[]</span> <span class="nf">testCopy</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">copyOf</span><span class="o">(</span><span class="n">original</span><span class="o">,</span> <span class="n">size</span><span class="o">);</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Benchmark</span>
+    <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">int</span><span class="o">[]</span> <span class="nf">testClone</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">original</span><span class="o">.</span><span class="na">clone</span><span class="o">();</span>
+    <span class="o">}</span>
+</code></pre>
+</div>
+<p>We create an <code class="highlighter-rouge">array</code> of <code class="highlighter-rouge">int</code> with random values and do a <code class="highlighter-rouge">clone</code> or <code class="highlighter-rouge">Arrays.copyOf</code>. 
+Note that we return the result of the copy to guarantee that the code will get executed, we will see in the escape analysis part that not returning the array can dramatically impact the benchmark.</p>
+
+<p>On top of <code class="highlighter-rouge">int  array</code>, there is a version for <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/ArrayByteCopyVsCloneBenchmark.java"><code class="highlighter-rouge">byte array</code></a>, <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/ArrayLongCopyVsCloneBenchmark.java"><code class="highlighter-rouge">long array</code></a> and <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/ArrayObjectCopyVsCloneBenchmark.java"><code class="highlighter-rouge">Object array</code></a>. 
+I use the DONT_INLINE flag to make it easier to analyse the asm generated if needed.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>mvn clean install
+java -jar target/benchmark.jar -bm avgt -tu ns -rf csv
+</code></pre>
+</div>
+
+<p>This gives the following <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/jmh-result.csv">numbers</a> for the average time in ns.</p>
+
+<p>In the following charts, I used the <code class="highlighter-rouge">total time/array size</code> to allow them to be displayed in the same chart.</p>
+
+<p>The lower the better.</p>
+
+<p><img src="/blog/images/CloneVCopy/array-bytes.png" alt="Byte" />
+<img src="/blog/images/CloneVCopy/array-ints.png" alt="Int" />
+<img src="/blog/images/CloneVCopy/array-longs.png" alt="Long" />
+<img src="/blog/images/CloneVCopy/array-objects.png" alt="Object" /></p>
+
+<p>As we can see <code class="highlighter-rouge">clone</code> is grossly about 10% cheaper on small arrays compared to <code class="highlighter-rouge">Arrays.copyOf</code>, still it a good option especially for small arrays.</p>
+
+<h1 id="objects">Objects</h1>
+
+<p>Now we will look at cloning object with 4, 8, 16 and 32 fields. 
+The benchmarks looks <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/Object4CopyVsCloneBenchmark.java">for 4 fields object</a> is as follows:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="nd">@Benchmark</span>
+    <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="n">Object4</span> <span class="nf">testCopy4</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="k">new</span> <span class="nf">Object4</span><span class="o">(</span><span class="n">original</span><span class="o">);</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Benchmark</span>
+    <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="n">Object4</span> <span class="nf">testClone4</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">original</span><span class="o">.</span><span class="na">clone</span><span class="o">();</span>
+    <span class="o">}</span>
+</code></pre>
+</div>
+
+<p>with <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/Object8CopyVsCloneBenchmark.java">8 fields</a>, <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/Object16CopyVsCloneBenchmark.java">16 fields</a> and <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/src/main/java/com/github/arnaudroger/Object32CopyVsCloneBenchmark.java">32 fields</a>.</p>
+
+<p>The normalised <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/jmh-result.csv">numbers</a> are as follows:</p>
+
+<p><img src="/blog/images/CloneVCopy/object.png" alt="Object4-32" /></p>
+
+<p>We can see that for small/medium objects - less that 8 fields - <code class="highlighter-rouge">clone</code> is not as efficient as copying, but it does start to pay off for bigger objects.</p>
+
+<p>This is not too surprising and from that <a href="https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4497">the jvm code</a> comment:</p>
+
+<blockquote>
+  <p>// TODO: generate fields copies for small objects instead.</p>
+</blockquote>
+
+<p>Somebody was meant to address that at a later time but never did.</p>
+
+<p>Let’s have a deeper look at the asm for the clone and copy on the 4 fields object.</p>
+
+<h2 id="asm-4-fields">Asm 4 fields</h2>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>java -jar target/benchmarks.jar -jvmArgs <span class="s2">"-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:+PrintAssembly "</span>  -f 1 <span class="s2">"Object4"</span>
+</code></pre>
+</div>
+
+<h3 id="copy-asm">copy asm</h3>
+<p>In the <code class="highlighter-rouge">testCopy</code> <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt">asm</a>, from <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L17">Line 17</a> to <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L32">Line 32</a> we can see the allocation code.</p>
+
+<p>I added some annotations in the asm starting with <code class="highlighter-rouge">**</code>.</p>
+
+<pre><code class="language-asm">0x000000010593d28f: mov 0x60(%r15),%rax
+0x000000010593d293: mov %rax,%r10
+0x000000010593d296: add $0x20,%r10         ;** allocation size
+0x000000010593d29a: cmp 0x70(%r15),%r10
+0x000000010593d29e: jae L0001
+0x000000010593d2a0: mov %r10,0x60(%r15)
+0x000000010593d2a4: prefetchnta 0xc0(%r10)
+0x000000010593d2ac: mov $0xf8015eab,%r11d  ;   {metadata('com/github/arnaudroger/beans/Object4')}
+0x000000010593d2b2: movabs $0x0,%r10
+0x000000010593d2bc: lea (%r10,%r11,8),%r10
+0x000000010593d2c0: mov 0xa8(%r10),%r10
+0x000000010593d2c7: mov %r10,(%rax)
+0x000000010593d2ca: movl $0xf8015eab,0x8(%rax)  ;   {metadata('com/github/arnaudroger/beans/Object4')}
+0x000000010593d2d1: mov %r12d,0xc(%rax)
+0x000000010593d2d5: mov %r12,0x10(%rax)
+0x000000010593d2d9: mov %r12,0x18(%rax)  ;*new  ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@0 (line 60)
+</code></pre>
+
+<p>The <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L19">Line 19</a> is the allocation size, 32 bytes, 16 bytes for properties + 12 bytes for headers + 4 bytes for alignment.
+You can check that using <a href="http://openjdk.java.net/projects/code-tools/jol/">jol</a>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>com.github.arnaudroger.beans.Object4 object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0    12        (object header)                           N/A
+     12     4    int Object4.f1                                N/A
+     16     4    int Object4.f2                                N/A
+     20     4    int Object4.f3                                N/A
+     24     4    int Object4.f4                                N/A
+     28     4        (loss due to the next object alignment)
+Instance size: 32 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+</code></pre>
+</div>
+
+<p>From <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L33">Line 33</a> to <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-copy-asm.txt#L48">Line 48</a> the field by field copy.</p>
+<pre><code class="language-asm">             L0000: mov 0xc(%rbp),%r11d  ;*getfield original4
+                                         ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@5 (line 60)
+0x000000010593d2e1: mov 0xc(%r12,%r11,8),%r10d  ; implicit exception: dispatches to 0x000000010593d322
+0x000000010593d2e6: mov %r10d,0xc(%rax)  ;*putfield f1
+                                         ; - com.github.arnaudroger.beans.Object4::&lt;init&gt;@9 (line 12)
+                                         ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@8 (line 60)
+0x000000010593d2ea: mov 0x10(%r12,%r11,8),%r8d
+0x000000010593d2ef: mov %r8d,0x10(%rax)  ;*putfield f2
+                                         ; - com.github.arnaudroger.beans.Object4::&lt;init&gt;@17 (line 13)
+                                         ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@8 (line 60)
+0x000000010593d2f3: mov 0x14(%r12,%r11,8),%r10d
+0x000000010593d2f8: mov %r10d,0x14(%rax)  ;*putfield f3
+                                          ; - com.github.arnaudroger.beans.Object4::&lt;init&gt;@25 (line 14)
+                                          ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testCopy4@8 (line 60)
+0x000000010593d2fc: mov 0x18(%r12,%r11,8),%r11d
+0x000000010593d301: mov %r11d,0x18(%rax)
+</code></pre>
+
+<h3 id="clone-asm">clone asm</h3>
+
+<p>for the <code class="highlighter-rouge">testClone</code> <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-clone-asm.txt">asm</a> we can also see from <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-clone-asm.txt#L24">Line 24</a> to <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/object4-clone-asm.txt#L37">Line 37</a> the allocation code.</p>
+
+<pre><code class="language-asm">0x000000010b17da9d: mov 0x60(%r15),%rbx
+0x000000010b17daa1: mov %rbx,%r10
+0x000000010b17daa4: add $0x20,%r10         ;** allocation size
+0x000000010b17daa8: cmp 0x70(%r15),%r10
+0x000000010b17daac: jae L0001
+0x000000010b17daae: mov %r10,0x60(%r15)
+0x000000010b17dab2: prefetchnta 0xc0(%r10)
+0x000000010b17daba: mov $0xf8015eab,%r11d  ;   {metadata('com/github/arnaudroger/beans/Object4')}
+0x000000010b17dac0: movabs $0x0,%r10
+0x000000010b17daca: lea (%r10,%r11,8),%r10
+0x000000010b17dace: mov 0xa8(%r10),%r10
+0x000000010b17dad5: mov %r10,(%rbx)
+0x000000010b17dad8: movl $0xf8015eab,0x8(%rbx)  ;   {metadata('com/github/arnaudroger/beans/Object4')}
+</code></pre>
+
+<p>Which is slightly surprising because in the compilation log</p>
+
+<p><img src="/blog/images/CloneVCopy/testClone-Chain.png" alt="JIT watch chain view" /></p>
+
+<div class="language-xml highlighter-rouge"><pre class="highlight"><code>        <span class="nt">&lt;klass</span> <span class="na">name=</span><span class="s">"java/lang/Object"</span> <span class="na">flags=</span><span class="s">"1"</span> <span class="na">id=</span><span class="s">"729"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;method</span> <span class="na">compile_kind=</span><span class="s">"c2n"</span> <span class="na">level=</span><span class="s">"0"</span> <span class="na">bytes=</span><span class="s">"0"</span> <span class="na">name=</span><span class="s">"clone"</span> <span class="na">flags=</span><span class="s">"260"</span> <span class="na">holder=</span><span class="s">"729"</span> <span class="na">id=</span><span class="s">"838"</span> <span class="na">compile_id=</span><span class="s">"167"</span> <span class="na">iicount=</span><span class="s">"512"</span> <span class="na">return=</span><span class="s">"729"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;call</span> <span class="na">method=</span><span class="s">"838"</span> <span class="na">inline=</span><span class="s">"1"</span> <span class="na">count=</span><span class="s">"16881"</span> <span class="na">prof_factor=</span><span class="s">"1"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;inline_fail</span> <span class="na">reason=</span><span class="s">"native method"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;dependency</span> <span class="na">ctxk=</span><span class="s">"833"</span> <span class="na">type=</span><span class="s">"leaf_type"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;uncommon_trap</span> <span class="na">reason=</span><span class="s">"unhandled"</span> <span class="na">bci=</span><span class="s">"1"</span> <span class="na">action=</span><span class="s">"none"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;intrinsic</span> <span class="na">nodes=</span><span class="s">"69"</span> <span class="na">id=</span><span class="s">"_clone"</span><span class="nt">/&gt;</span>
+</code></pre>
+</div>
+
+<p><code class="highlighter-rouge">Object.clone</code> is marked has having failed to inline because it is a “native method”.</p>
+
+<p>clone is an intrinsic and is inlined by <a href="https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4569">inline_native_clone</a> and <a href="https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4478">copy_to_clone</a>.</p>
+
+<p><code class="highlighter-rouge">copy_to_clone</code> generate the <a href="https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4480">allocation</a> and then a <a href="https://github.com/dmlloyd/openjdk/blob/jdk8u/jdk8u/hotspot/src/share/vm/opto/library_call.cpp#L4531">long array copy</a> as followed.
+ The long array copy is doable because objects are 8 bytes aligned in memory.</p>
+
+<pre><code class="language-asm">             L0000: lea 0x8(%r12,%r8,8),%rdi ;** src 
+0x000000010b17dae4: mov %rbx,%rsi ;** dst
+0x000000010b17dae7: add $0x8,%rsi ;** add offset
+0x000000010b17daeb: mov $0x3,%edx ;** length
+0x000000010b17daf0: movabs $0x10aff4780,%r10
+0x000000010b17dafa: callq *%r10  ;*invokespecial clone
+                                 ; - com.github.arnaudroger.beans.Object4::clone@1 (line 28)
+                                 ; - com.github.arnaudroger.Object4CopyVsCloneBenchmark::testClone4@4 (line 66)
+                                 
+</code></pre>
+<p>So despite being marked as inline failed, it is fully inlined.
+It copies from offset 8 bytes and copies 3 long or 24 bytes, the includes 4 bytes for the class metadata, 16 bytes for the 4 ints, and  the rest is for alignment.</p>
+
+<h1 id="impact-of-escape-analysis">Impact of Escape Analysis</h1>
+
+<p>But because cloning uses memory copy, the instance will fail the escape analysis, which will disable some optimisations.
+In the following benchmark, we create a copy and return only one field from the new <code class="highlighter-rouge">Object32</code> created.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>     <span class="nd">@Benchmark</span>
+     <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+     <span class="kd">public</span> <span class="kt">int</span> <span class="nf">testCopy</span><span class="o">()</span> <span class="o">{</span>
+         <span class="k">return</span> <span class="k">new</span> <span class="nf">Object32</span><span class="o">(</span><span class="n">original</span><span class="o">).</span><span class="na">f29</span><span class="o">;</span>
+     <span class="o">}</span>
+ 
+     <span class="nd">@Benchmark</span>
+     <span class="nd">@CompilerControl</span><span class="o">(</span><span class="n">CompilerControl</span><span class="o">.</span><span class="na">Mode</span><span class="o">.</span><span class="na">DONT_INLINE</span><span class="o">)</span>
+     <span class="kd">public</span> <span class="kt">int</span> <span class="nf">testClone</span><span class="o">()</span> <span class="o">{</span>
+         <span class="k">return</span> <span class="n">original</span><span class="o">.</span><span class="na">clone</span><span class="o">().</span><span class="na">f29</span><span class="o">;</span>
+     <span class="o">}</span>
+</code></pre>
+</div>
+
+<p>And the results are that even though <code class="highlighter-rouge">clone</code> is more efficient for a 32 fields object</p>
+
+<p><img src="/blog/images/CloneVCopy/object-ea.png" alt="Object-EA" /></p>
+
+<p>the clone benchmark is more than 4 times slower! What happened?</p>
+
+<p>Let’s have a closer look at the asm to see under the hood.</p>
+
+<h2 id="asm-clone">asm clone</h2>
+
+<p>In the <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-clone-asm.txt">asm</a> for <code class="highlighter-rouge">testClone</code> is similar to the one for <code class="highlighter-rouge">Object4CopyVsCloneBenchmark.testClone</code>. 
+On <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-clone-asm.txt#L26">Line 26</a> it allocates 144 bytes - 90 in hexadecimal -, that’s 12 bytes for header + 32 * 4 = 128 bytes for the fields and 4 bytes lost for alignment.</p>
+
+<pre><code class="language-asm">0x000000010ceebe8c: mov 0xc(%rsi),%r9d  ;*getfield original
+                                        ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@1 (line 69)
+0x000000010ceebe90: test %r9d,%r9d
+0x000000010ceebe93: je L0002  ;*invokespecial clone
+                              ; - com.github.arnaudroger.beans.Object32::clone@1 (line 111)
+                              ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@4 (line 69)
+0x000000010ceebe99: lea (%r12,%r9,8),%rbp  ;*getfield original
+                                           ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@1 (line 69)
+0x000000010ceebe9d: mov 0x60(%r15),%rbx
+0x000000010ceebea1: mov %rbx,%r10
+0x000000010ceebea4: add $0x90,%r10 ;** object length
+0x000000010ceebeab: cmp 0x70(%r15),%r10
+0x000000010ceebeaf: jae L0001
+0x000000010ceebeb1: mov %r10,0x60(%r15)
+0x000000010ceebeb5: prefetchnta 0xc0(%r10)
+0x000000010ceebebd: mov $0xf8015eab,%r11d  ;   {metadata('com/github/arnaudroger/beans/Object32')}
+0x000000010ceebec3: movabs $0x0,%r10
+0x000000010ceebecd: lea (%r10,%r11,8),%r10
+0x000000010ceebed1: mov 0xa8(%r10),%r10
+0x000000010ceebed8: mov %r10,(%rbx)
+0x000000010ceebedb: movl $0xf8015eab,0x8(%rbx)  ;   {metadata('com/github/arnaudroger/beans/Object32')}
+             L0000: lea 0x8(%r12,%r9,8),%rdi ;** src
+0x000000010ceebee7: mov %rbx,%rsi ;** dest
+0x000000010ceebeea: add $0x8,%rsi ;** add offset of 8
+0x000000010ceebeee: mov $0x11,%edx ;** length to copy 0x11 * 8 = 136 bytes 
+0x000000010ceebef3: movabs $0x10cd5d780,%r10
+0x000000010ceebefd: callq *%r10  ;*invokespecial clone
+                                 ; - com.github.arnaudroger.beans.Object32::clone@1 (line 111)
+                                 ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@4 (line 69)
+0x000000010ceebf00: mov 0x7c(%rbx),%eax  ;*getfield f29 ** 7c is 124 bytes, minus the headers 112 that offset 28 ints 
+                                         ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testClone@7 (line 69)
+0x000000010ceebf03: add $0x20,%rsp
+0x000000010ceebf07: pop %rbp
+0x000000010ceebf08: test %eax,-0xb154f0e(%rip)  # 0x0000000101d97000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x000000010ceebf0e: retq
+</code></pre>
+
+<h2 id="asm-copy">asm copy</h2>
+
+<p>In the copy <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-copy-asm.txt">one</a>, it does not even copy the object but just returns the f29 field from the original object.
+Because the copy did not escape, and the copy creation did not have any side effects, it is safe to totally remove the creation of the new object.</p>
+
+<p><a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-copy-asm.txt#L16">Line 16</a> to <a href="https://github.com/arnaudroger/blog_samples/blob/master/03_clonevscopy/ea-copy-asm.txt#L26">Line 26</a>.</p>
+<pre><code class="language-asm">0x0000000109c7b1cc: mov 0xc(%rsi),%r11d  ;*getfield original
+                                         ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testCopy@5 (line 63)
+0x0000000109c7b1d0: mov 0x7c(%r12,%r11,8),%eax  ;*getfield f29 ** 7c is 124 bytes, minus the headers 112 that offset 28 ints
+                                                ; - com.github.arnaudroger.beans.Object32::&lt;init&gt;@230 (line 67)
+                                                ; - com.github.arnaudroger.Object32CopyVsCloneEABenchmark::testCopy@8 (line 63)
+                                                ; implicit exception: dispatches to 0x0000000109c7b1e1
+0x0000000109c7b1d5: add $0x10,%rsp
+0x0000000109c7b1d9: pop %rbp
+0x0000000109c7b1da: test %eax,-0x47b81e0(%rip)  # 0x00000001054c3000
+                                                ;   {poll_return} *** SAFEPOINT POLL ***
+0x0000000109c7b1e0: retq
+</code></pre>
+
+<h1 id="summary">Summary</h1>
+
+<p>The <code class="highlighter-rouge">clone</code> method will perform better on <code class="highlighter-rouge">array</code> copy and on big objects but be sure that your code will not benefit from escape analysis.
+In any case, it might not make a big difference to your overall code, so Doug Lea’s advice is still valid, avoid unless for array copy.</p>
+
+
+    </div>
+
+    <div class="PageNavigation">
+        
+        <a class="prev" href="/blog/2017/06/15/forward-vs-backward-loop.html">&laquo; Why reverse loops are not faster</a>
+        
+        
+    </div>
+
+
+    <div id="disqus_thread"></div>
+<script>
+
+/**
+ *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+ *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables */
+/*
+var disqus_config = function () {
+    this.page.url = 'http://arnaudroger.github.io/blog/2017/07/17/deep-dive-clone-vs-copy.html';  // Replace PAGE_URL with your page's canonical URL variable
+    this.page.identifier = '/2017/07/17/deep-dive-clone-vs-copy'; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+    var d = document, s = d.createElement('script');
+    s.src = '//arogerblog.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+    <div class="wrapper">
+
+        <h2 class="footer-heading">Eat Sleep Code Repeat.</h2>
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Eat Sleep Code Repeat.</li>
+                    <li><a href="mailto:arnaud.roger@gmail.com">arnaud.roger@gmail.com</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                <ul class="social-media-list">
+                    
+                    <li>
+                        <a href="https://github.com/arnaudroger"><span class="icon icon--github"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">arnaudroger</span></a>
+
+                    </li>
+                    
+
+                    
+                    <li>
+                        <a href="https://twitter.com/arnaudroger"><span class="icon icon--twitter"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username">arnaudroger</span></a>
+
+                    </li>
+                    
+                </ul>
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p>Rambling of an old java developer.</p>
+            </div>
+        </div>
+
+    </div>
+</footer>
+
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-83272639-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+
+  </body>
+
+</html>
