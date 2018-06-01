@@ -75,13 +75,15 @@ The final result - unless some other issue is discovered later - is in the TL;DR
 
 <p>Random <code class="highlighter-rouge">ArrayList</code> access is about 6% more expensive because of the size check and cast check introduced in the <code class="highlighter-rouge">ArrayList</code>.</p>
 
-<p><img src="/blog/images/05_arraylists_vs_arrays/Random2Access.png" alt="RandomAccess-avgt" /></p>
+<p><em>Random access average invocation time</em>
+<img src="/blog/images/05_arraylists_vs_arrays/Random2Access.png" alt="RandomAccess-avgt" /></p>
 
 <p>For sequential access it seems <code class="highlighter-rouge">Array</code> can be a lot faster especially for smaller ones. 
 On the long add loop, there is 50% perf difference for 10 elements, 80% on a 1000 elements, but that number may only apply to an add loop, allowing for more optimisations.
 It’s hard to tell if those numbers can be generalised to other kinds of work than numerical one.</p>
 
-<p><img src="/blog/images/05_arraylists_vs_arrays/Seq2Access.png" alt="SeqAccess avgt/size" /></p>
+<p><em>Sequential access average time of 1 get</em>
+<img src="/blog/images/05_arraylists_vs_arrays/Seq2Access.png" alt="SeqAccess avgt/size" /></p>
 
 <h1 id="a-word-about-arrayliste">A word about <code class="highlighter-rouge">ArrayList&lt;E&gt;</code></h1>
 
