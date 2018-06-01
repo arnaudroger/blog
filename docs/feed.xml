@@ -5,9 +5,11 @@
     <description>Rambling of an old java developer.</description>
     <link>http://arnaudroger.github.io/blog/</link>
     <atom:link href="http://arnaudroger.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 27 Jul 2017 16:21:54 +0100</pubDate>
-    <lastBuildDate>Thu, 27 Jul 2017 16:21:54 +0100</lastBuildDate>
+    <pubDate>Fri, 01 Jun 2018 12:36:57 +0100</pubDate>
+    <lastBuildDate>Fri, 01 Jun 2018 12:36:57 +0100</lastBuildDate>
     <generator>Jekyll v3.4.0</generator>
+    
+    
     
     
       <item>
@@ -40,7 +42,7 @@ It is highlighted by Josh Bloch, the author of Effective Java &lt;a href=&quot;h
 &lt;ul&gt;
   &lt;li&gt;&lt;del&gt;Clone is faster for array copy, noticeably on small arrays.&lt;/del&gt;&lt;/li&gt;
   &lt;li&gt;Arrays.copyOf and clone have similar performance.&lt;/li&gt;
-  &lt;li&gt;Clone is slower for small objects, less than 8 fields, but faster otherwise.&lt;/li&gt;
+  &lt;li&gt;use clone for big object more than 8 fields or for object that have expensive calculation on construction i.e. SimpleDateFormat.&lt;/li&gt;
   &lt;li&gt;Clone fails the escape analysis, potentially stopping other optimisations to be applied.&lt;/li&gt;
 &lt;/ul&gt;
 
@@ -2175,8 +2177,6 @@ java -jar target/benchmarks.jar Csv2Ben -f 1 -jvmArgs &lt;span class=&quot;s2&qu
         
         
       </item>
-    
-    
     
     
   </channel>

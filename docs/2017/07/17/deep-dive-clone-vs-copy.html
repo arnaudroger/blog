@@ -88,7 +88,7 @@ It is highlighted by Josh Bloch, the author of Effective Java <a href="http://ww
 <ul>
   <li><del>Clone is faster for array copy, noticeably on small arrays.</del></li>
   <li>Arrays.copyOf and clone have similar performance.</li>
-  <li>Clone is slower for small objects, less than 8 fields, but faster otherwise.</li>
+  <li>use clone for big object more than 8 fields or for object that have expensive calculation on construction i.e. SimpleDateFormat.</li>
   <li>Clone fails the escape analysis, potentially stopping other optimisations to be applied.</li>
 </ul>
 
@@ -391,6 +391,8 @@ In any case, it might not make a big difference to your overall code, so Doug Le
         
         <a class="prev" href="/blog/2017/06/15/forward-vs-backward-loop.html">&laquo; Why reverse loops are not faster</a>
         
+        
+        <a class="next" href="/blog/2018/05/23/arraylist-vs-arrays.html">ArrayList.get(i) vs array[i] &raquo;</a>
         
     </div>
 
