@@ -65,6 +65,8 @@ and you can now just used this `resultSetExtractor` to map your one-to-many.
 
 Note that sfm uses the root id break as the basis of its aggregation, the order of the query is therefore important.
 
+_UPDATE_ since [6.2.0](https://simpleflatmapper.org/2019/01/22/v6.2.0.html) a new option `unorderedJoin()` allow for join mapping with a unordered ResultSet.
+
 ## What if you want to keep the role list out of the user object?
 
 Instead of having a User class and UserWithRole class you can just map the query to a `Tuple2<User, List<Role>>` using sfm-tuples or [jOOL](https://github.com/jOOQ/jOOL).

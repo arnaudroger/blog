@@ -69,6 +69,9 @@ select(
         .leftJoin(BOOK).on(BOOK.AUTHOR_ID.eq(AUTHOR.ID))
     .orderBy(AUTHOR.ID)
 ```
+
+_UPDATE_ since [6.2.0](https://simpleflatmapper.org/2019/01/22/v6.2.0.html) a new option `unorderedJoin()` allow for join mapping with a unordered ResultSet.
+
 that returns:
 
 ```

@@ -78,6 +78,8 @@ The `Mapper` is thread-safe it is recommended to have only one instance per type
 For the break detection on the root object you need to order by the id of the root object, `.orderBy(LOCATION.PLAYER_ID)` here.
 Now we just need to execute the query, retrieve the `ResultSet` and use the jdbcMapper to map the rows to `Location` object.
 
+_UPDATE_ since [6.2.0](https://simpleflatmapper.org/2019/01/22/v6.2.0.html) a new option `unorderedJoin()` allow for join mapping with a unordered ResultSet.
+
 ```java
 try (ResultSet rs = 
         dsl

@@ -1,7 +1,6 @@
 ---
 layout: post
 title: ArrayList.get(i) vs array[i]
-draft: true
 ---
 
 I recently did a [presentation](https://slides.com/arnaudroger/when-micro-optimisation-matters/) at the [Belfast JUG](https://www.meetup.com/BelfastJUG/) about some work I did try to optimise the Re2j library.
@@ -20,12 +19,16 @@ The final result - unless some other issue is discovered later - is in the TL;DR
 
 Random `ArrayList` access is about 6% more expensive because of the size check and cast check introduced in the `ArrayList`.
 
+_Random access average invocation time_
+
 ![RandomAccess-avgt](/blog/images/05_arraylists_vs_arrays/Random2Access.png)
 
 
 For sequential access it seems `Array` can be a lot faster especially for smaller ones. 
 On the long add loop, there is 50% perf difference for 10 elements, 80% on a 1000 elements, but that number may only apply to an add loop, allowing for more optimisations.
 It's hard to tell if those numbers can be generalised to other kinds of work than numerical one.
+
+_Sequential access average time of 1 get_
 
 ![SeqAccess avgt/size](/blog/images/05_arraylists_vs_arrays/Seq2Access.png)
 
@@ -416,7 +419,6 @@ for the `ArrayList` indexed access there is a bit more happening.
                                                                      ; - com.github.arnaudroger.SeqListAccess::testIndexed@1 (line 74)
 ```
 2. load data.size
-
 ```asm
   6.59%    4.76%     │ ↗  0x00007f2925225ed2: mov    0x8(%rsp),%r11d
                      │ │  0x00007f2925225ed7: mov    0x10(%r12,%r11,8),%r10d  ;*getfield size

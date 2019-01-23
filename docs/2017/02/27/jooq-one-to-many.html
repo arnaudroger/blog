@@ -137,6 +137,8 @@ Fortunately, jOOQ provide access to the underlying ResultSet, so all we need to 
 <p>For the break detection on the root object you need to order by the id of the root object, <code class="highlighter-rouge">.orderBy(LOCATION.PLAYER_ID)</code> here.
 Now we just need to execute the query, retrieve the <code class="highlighter-rouge">ResultSet</code> and use the jdbcMapper to map the rows to <code class="highlighter-rouge">Location</code> object.</p>
 
+<p><em>UPDATE</em> since <a href="https://simpleflatmapper.org/2019/01/22/v6.2.0.html">6.2.0</a> a new option <code class="highlighter-rouge">unorderedJoin()</code> allow for join mapping with a unordered ResultSet.</p>
+
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">try</span> <span class="o">(</span><span class="n">ResultSet</span> <span class="n">rs</span> <span class="o">=</span> 
         <span class="n">dsl</span>
             <span class="o">.</span><span class="na">select</span><span class="o">(</span>

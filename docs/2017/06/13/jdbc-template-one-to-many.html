@@ -125,6 +125,8 @@ All you need to do is create a <code class="highlighter-rouge">ResultSetExtracto
 
 <p>Note that sfm uses the root id break as the basis of its aggregation, the order of the query is therefore important.</p>
 
+<p><em>UPDATE</em> since <a href="https://simpleflatmapper.org/2019/01/22/v6.2.0.html">6.2.0</a> a new option <code class="highlighter-rouge">unorderedJoin()</code> allow for join mapping with a unordered ResultSet.</p>
+
 <h2 id="what-if-you-want-to-keep-the-role-list-out-of-the-user-object">What if you want to keep the role list out of the user object?</h2>
 
 <p>Instead of having a User class and UserWithRole class you can just map the query to a <code class="highlighter-rouge">Tuple2&lt;User, List&lt;Role&gt;&gt;</code> using sfm-tuples or <a href="https://github.com/jOOQ/jOOL">jOOL</a>.</p>
